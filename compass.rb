@@ -90,7 +90,7 @@ class CompassClient
     if response.code.to_i == 200
       response
     else
-      raise "login failed"
+      raise "GET #{path} failed (#{response.code})"
     end
   end
 
@@ -107,7 +107,7 @@ class CompassClient
     if response.code.to_i == 200
       response
     else
-      raise "login failed"
+      raise "POST #{path} failed (#{response.code})"
     end
   end
 end
