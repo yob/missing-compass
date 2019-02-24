@@ -1,0 +1,45 @@
+{
+  "d": {
+    "__type": "GenericMobileResponse:http://jdlf.com.au/ns/data/mobile/",
+    "data": [
+      {
+        "__type": "Cycle:http://jdlf.com.au/ns/data/cycle/",
+        "finish": "01/02/2019 - 12:00 AM",
+        "finishUtc": "2019-01-31T13:00:00Z",
+        "id": 4,
+        "languages": [],
+        "mobileDescription": "Teacher Meet and Greet 2019\nTuesday 12th - Wednesday 13th February 2019\n3:45pm - 7:45pm\n10 min bookings.",
+        "name": "Teacher Meet and Greet 2019",
+        "slots": [
+          {
+            "__type": "Slot:http://jdlf.com.au/ns/data/mobile/pst/Slot",
+            "comment": "",
+            "cycleId": 4,
+            "id": 12,
+            "isBookable": true,
+            "start": "12/02/2019 - 03:45 PM",
+            "startUtc": "2019-02-12T04:45:00Z"
+          },
+          {
+            "__type": "Slot:http://jdlf.com.au/ns/data/mobile/pst/Slot",
+            "comment": "",
+            "cycleId": 4,
+            "id": 13,
+            "isBookable": true,
+            "start": "12/02/2019 - 03:55 PM",
+            "startUtc": "2019-02-12T04:55:00Z"
+          }
+        ],
+        "staffAccessLevel": 1,
+        "start": "01/01/2019 - 12:00 AM",
+        "startUtc": "2019-01-01T00:00:00Z",
+        "target": 3,
+        "targetAccessLevel": 1
+      }
+    ],
+    "errorCode": 0,
+    "friendlyMessage": null,
+    "success": true,
+    "technicalMessage": null
+  }
+}
