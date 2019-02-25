@@ -1,51 +1,33 @@
 require 'net/http'
 require 'json'
+require 'time'
 
-class CompassJSON
-  def self.parse(data)
-    if data.is_a?(String) || data.is_a?(Integer)
-      data
-    elsif data.is_a?(Array)
-      data.map { |item| CompassJSON.parse(item) }
-    elsif data.is_a?(Hash)
-      if data.size == 1 && data.key?("d") # root of a response
-        data.fetch("d")
-      elsif data.fetch("__type","").starts_with?("GenericMobileResponse:")
-        GenericMobileResponse.new(data.fetch("data"))
-      elsif data.fetch("__type","").starts_with?("NewsItem:")
-        NewsItem.new(data.fetch("data"))
-      else
-        CompassJSON.parse(data)
-      end
-    else
-      raise "Not sure what to do with: #{data.inspect}"
-    end
-  end
-end
+class NewsItemAttachment
 
-class GenericMobileResponse
-  attr_reader :data
+  attr_reader :id, :is_image, :name, :originalFileName, :sourceOrganisationId, :url
 
   def initialize(data)
-    @data = data
-  end
-
-  def eql?(other)
-    @data.hash == other.data.hash
+    @id = data.fetch("assetId", 0)
+    @is_image = data.fetch("isImage", false)
+    @name = data.fetch("name", "")
+    @originalFileName = data.fetch("originalFileName", "")
+    @sourceOrganisationId = data.fetch("sourceOrganisationId", nil)
+    @url = data.fetch("url", nil)
   end
 end
 
 class NewsItem
-  attr_reader :attachments, :content, :content_html, :id, :post_date, :post_date_utc
+  attr_reader :attachments, :content, :content_html, :id, :post_date
   attr_reader :priority, :title, :uploader, :user_image_url
 
   def initialize(data)
     @id = data.fetch("newsItemId", 0)
-    @attachments = data.fetch("attachments", [])
+    @attachments = data.fetch("attachments", []).map { |item|
+      NewsItemAttachment.new(item)
+    }
     @content = data.fetch("content", "")
     @content_html = data.fetch("contentHtml", "")
-    @post_date = data.fetch("", "postDate")
-    @post_date_utc = data.fetch("postDateUtc", "")
+    @post_date = parse_time(data.fetch("postDateUtc", ""))
     @priority = data.fetch("priority", false)
     @title = data.fetch("title", "")
     @uploader = data.fetch("uploader", "")
@@ -54,6 +36,12 @@ class NewsItem
 
   def eql?(other)
     other.is_a?(NewsItem) && @id == other.id
+  end
+
+  private
+
+  def parse_time(str)
+    Time.iso8601(str)
   end
 end
 
@@ -77,7 +65,7 @@ class CompassClient
       path: PATH_CHECK_PARENT_DETAILS,
       headers: {"Cookie" => @cookie},
     )
-    CompassJSON.parse(JSON.parse(response.body))
+    JSON.parse(response.body)
   end
 
   def download_file(file_id: )
@@ -93,7 +81,8 @@ class CompassClient
       path: PATH_GET_MESSAGES,
       headers: {"Cookie" => @cookie},
     )
-    CompassJSON.parse(JSON.parse(response.body))
+    data = JSON.parse(response.body)
+    data.fetch("d")
   end
 
   def get_news_feed
@@ -101,7 +90,10 @@ class CompassClient
       path: PATH_NEWSFEED,
       headers: {"Cookie" => @cookie},
     )
-    CompassJSON.parse(JSON.parse(response.body))
+    data = JSON.parse(response.body)
+    data.fetch("d",{}).fetch("data", []).map { |item|
+      NewsItem.new(item)
+    }.sort_by(&:post_date)
   end
 
   def get_personal_details
@@ -109,7 +101,7 @@ class CompassClient
       path: PATH_GET_PERSONAL_DETAILS,
       headers: {"Cookie" => @cookie},
     )
-    CompassJSON.parse(JSON.parse(response.body))
+    JSON.parse(response.body)
   end
 
   # this seems to be parent teacher interview slots
@@ -118,7 +110,7 @@ class CompassClient
       path: PATH_PST_CYCLES,
       headers: {"Cookie" => @cookie},
     )
-    CompassJSON.parse(JSON.parse(response.body))
+    JSON.parse(response.body)
   end
 
   private
@@ -175,5 +167,7 @@ if __FILE__ == $0
     exit(1)
   end
   client = CompassClient.new(hostname, username, password)
-  puts client.get_news_feed.inspect
+  client.get_news_feed.each do |item|
+    puts "#{item.post_date} #{item.title}"
+  end
 end
