@@ -45,6 +45,30 @@ class NewsItem
   end
 end
 
+class Message
+  attr_reader :id, :archived, :content_html, :date, :news_item_id, :sender_name, :sender_id
+
+  def initialize(data)
+    @id = data.fetch("id", 0)
+    @content_html = data.fetch("contentHtml", "")
+    @date = parse_time(data.fetch("date", ""))
+    @archived = data.fetch("archived", false)
+    @news_item_id = data.fetch("parameters", {}).fetch("newsItemId", nil)
+    @sender_name = data.fetch("sender", {}).fetch("reportName","")
+    @sender_id = data.fetch("sender", {}).fetch("userId","")
+  end
+
+  def eql?(other)
+    other.is_a?(Message) && @id == other.id
+  end
+
+  private
+
+  def parse_time(str)
+    Time.iso8601(str)
+  end
+end
+
 class CompassClient
   USER_AGENT = "iOS/12_1_2 type/iPhone CompassEducation/4.5.3"
   PATH_AUTH = "/services/admin.svc/AuthenticateUserCredentials"
@@ -82,7 +106,9 @@ class CompassClient
       headers: {"Cookie" => @cookie},
     )
     data = JSON.parse(response.body)
-    data.fetch("d")
+    data.fetch("d",{}).fetch("data", []).map { |item|
+      Message.new(item)
+    }.sort_by(&:date)
   end
 
   def get_news_feed
@@ -168,6 +194,9 @@ if __FILE__ == $0
   end
   client = CompassClient.new(hostname, username, password)
   client.get_news_feed.each do |item|
-    puts "#{item.post_date} | #{item.id} | #{item.title} | #{item.uploader} | https://#{hostname}/Communicate/News/ViewNewsItem.aspx?newsItemId=#{item.id}"
+    puts "NewsItem | #{item.post_date} | #{item.id} | #{item.title} | #{item.uploader} | https://#{hostname}/Communicate/News/ViewNewsItem.aspx?newsItemId=#{item.id}"
+  end
+  client.get_messages.each do |msg|
+    puts "Message | #{msg.date} | #{msg.id} | #{msg.news_item_id} | #{msg.content_html} | #{msg.sender_name} | https://#{hostname}/Communicate/News/ViewNewsItem.aspx?newsItemId=#{msg.news_item_id}"
   end
 end
