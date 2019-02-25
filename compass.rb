@@ -168,6 +168,6 @@ if __FILE__ == $0
   end
   client = CompassClient.new(hostname, username, password)
   client.get_news_feed.each do |item|
-    puts "#{item.post_date} #{item.id} #{item.title} #{item.uploader} https://#{hostname}/Communicate/News/ViewNewsItem.aspx?newsItemId=#{item.id}"
+    puts "#{item.post_date} | #{item.id} | #{item.title} | #{item.uploader} | https://#{hostname}/Communicate/News/ViewNewsItem.aspx?newsItemId=#{item.id}"
   end
 end
