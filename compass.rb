@@ -4,34 +4,77 @@ require 'time'
 
 class NewsItemAttachment
 
-  attr_reader :id, :is_image, :name, :originalFileName, :sourceOrganisationId, :url
-
   def initialize(data)
-    @id = data.fetch("assetId", 0)
-    @is_image = data.fetch("isImage", false)
-    @name = data.fetch("name", "")
-    @originalFileName = data.fetch("originalFileName", "")
-    @sourceOrganisationId = data.fetch("sourceOrganisationId", nil)
-    @url = data.fetch("url", nil)
+    @data = data
+  end
+
+  def id
+    @data.fetch("assetId", 0)
+  end
+
+  def is_image
+    @data.fetch("isImage", false)
+  end
+
+  def name
+    @data.fetch("name", "")
+  end
+
+  def original_file_name
+    @data.fetch("originalFileName", "")
+  end
+
+  def source_organisation_id
+    @data.fetch("sourceOrganisationId", nil)
+  end
+
+  def url
+    @data.fetch("url", nil)
   end
 end
 
 class NewsItem
-  attr_reader :attachments, :content, :content_html, :id, :post_date
-  attr_reader :priority, :title, :uploader, :user_image_url
 
   def initialize(data)
-    @id = data.fetch("newsItemId", 0)
-    @attachments = data.fetch("attachments", []).map { |item|
+    @data = data
+  end
+
+  def id
+    @data.fetch("newsItemId", 0)
+  end
+
+  def attachments
+    @data.fetch("attachments", []).map { |item|
       NewsItemAttachment.new(item)
     }
-    @content = data.fetch("content", "")
-    @content_html = data.fetch("contentHtml", "")
-    @post_date = parse_time(data.fetch("postDateUtc", ""))
-    @priority = data.fetch("priority", false)
-    @title = data.fetch("title", "")
-    @uploader = data.fetch("uploader", "")
-    @user_image_url = data.fetch("userImageUrl", "")
+  end
+
+  def content
+    @data.fetch("content", "")
+  end
+
+  def content_html
+    @data.fetch("contentHtml", "")
+  end
+
+  def post_date
+    parse_time(@data.fetch("postDateUtc", ""))
+  end
+
+  def priority
+    @data.fetch("priority", false)
+  end
+
+  def title
+    @data.fetch("title", "")
+  end
+
+  def uploader
+    @data.fetch("uploader", "")
+  end
+
+  def user_image_url
+    @data.fetch("userImageUrl", "")
   end
 
   def eql?(other)
@@ -46,20 +89,41 @@ class NewsItem
 end
 
 class Message
-  attr_reader :id, :archived, :content_html, :date, :news_item_id, :sender_name, :sender_id
 
   def initialize(data)
-    @id = data.fetch("id", 0)
-    @content_html = data.fetch("contentHtml", "")
-    @date = parse_time(data.fetch("date", ""))
-    @archived = data.fetch("archived", false)
-    @news_item_id = data.fetch("parameters", {}).fetch("newsItemId", nil)
-    @sender_name = data.fetch("sender", {}).fetch("reportName","")
-    @sender_id = data.fetch("sender", {}).fetch("userId","")
+    @data = data
+  end
+
+  def id
+    @data.fetch("id", 0)
+  end
+
+  def archived
+    @data.fetch("archived", false)
+  end
+
+  def content_html
+    @data.fetch("contentHtml", "")
   end
 
   def eql?(other)
     other.is_a?(Message) && @id == other.id
+  end
+
+  def date
+    parse_time(@data.fetch("date", ""))
+  end
+
+  def news_item_id
+    @data.fetch("parameters", {}).fetch("newsItemId", nil)
+  end
+
+  def sender_name
+    @data.fetch("sender", {}).fetch("reportName","")
+  end
+
+  def sender_id
+    @data.fetch("sender", {}).fetch("userId","")
   end
 
   private
