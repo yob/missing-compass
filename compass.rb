@@ -35,6 +35,8 @@ end
 
 class NewsItem
 
+  attr_reader :data
+
   def initialize(data)
     @data = data
   end
@@ -88,7 +90,36 @@ class NewsItem
   end
 end
 
+class NewsItemRepository
+  def initialize(dir)
+    raise ArgumentError, "#{dir} is not a directory" unless File.directory?(dir)
+    @dir = File.expand_path(dir)
+  end
+
+  def exists?(news_item)
+    File.file?(build_path(news_item))
+  end
+
+  def save(news_item)
+    if !exists?(news_item)
+      File.open(build_path(news_item), "wb") do |io|
+        io.write(JSON.pretty_generate(news_item.data))
+      end
+    else
+      false
+    end
+  end
+
+  private
+
+  def build_path(news_item)
+    File.join(@dir, "news-item-#{news_item.id}.json")
+  end
+end
+
 class Message
+
+  attr_reader :data
 
   def initialize(data)
     @data = data
@@ -130,6 +161,33 @@ class Message
 
   def parse_time(str)
     Time.iso8601(str)
+  end
+end
+
+class MessageRepository
+  def initialize(dir)
+    raise ArgumentError, "#{dir} is not a directory" unless File.directory?(dir)
+    @dir = File.expand_path(dir)
+  end
+
+  def exists?(msg)
+    File.file?(build_path(msg))
+  end
+
+  def save(msg)
+    if !exists?(msg)
+      File.open(build_path(msg), "wb") do |io|
+        io.write(JSON.pretty_generate(msg.data))
+      end
+    else
+      false
+    end
+  end
+
+  private
+
+  def build_path(msg)
+    File.join(@dir, "message-#{msg.id}.json")
   end
 end
 
@@ -256,11 +314,16 @@ if __FILE__ == $0
     $stderr.puts "USAGE: ruby compass.rb <school hostname> <username> <password>"
     exit(1)
   end
+  dbpath = File.join(File.expand_path(File.dirname(__FILE__)), "db")
+  news_item_repo = NewsItemRepository.new(dbpath)
+  message_repo = MessageRepository.new(dbpath)
   client = CompassClient.new(hostname, username, password)
   client.get_news_feed.each do |item|
+    news_item_repo.save(item)
     puts "NewsItem | #{item.post_date} | #{item.id} | #{item.title} | #{item.uploader} | https://#{hostname}/Communicate/News/ViewNewsItem.aspx?newsItemId=#{item.id}"
   end
   client.get_messages.each do |msg|
+    message_repo.save(msg)
     puts "Message | #{msg.date} | #{msg.id} | #{msg.news_item_id} | #{msg.content_html} | #{msg.sender_name} | https://#{hostname}/Communicate/News/ViewNewsItem.aspx?newsItemId=#{msg.news_item_id}"
   end
 end
