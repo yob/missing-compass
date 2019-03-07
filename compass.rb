@@ -157,6 +157,13 @@ class NewsItemRepository
     end
   end
 
+  def find(id)
+    path = File.join(@dir, "news-item-#{id}.json")
+    if File.file?(path)
+      NewsItem.new(JSON.parse(File.read(path)))
+    end
+  end
+
   def all
     Dir.glob("#{@dir}/news-item-*.json").map do |path|
       NewsItem.new(JSON.parse(File.read(path)))
@@ -241,6 +248,34 @@ class MessageRepository
 
   def build_path(msg)
     File.join(@dir, "message-#{msg.id}.json")
+  end
+end
+
+class CompassEmail
+  attr_reader :to, :from, :subject, :body, :attachments
+
+  def initialize(to:, from:, subject:, body:, attachments: [])
+    @to, @from, @subject, @body, @attachments = to, from, subject, body, attachments
+  end
+
+  def self.from_message(to, from, message, news_item, attachments)
+    new(
+      to: to,
+      from: from,
+      subject: message.content_html,
+      body: news_item.content,
+      attachments: attachments
+    )
+  end
+
+  def self.from_news_item(to, from, news_item, attachments)
+    new(
+      to: to,
+      from: from,
+      subject: news_item.title,
+      body: news_item.content,
+      attachments: attachments
+    )
   end
 end
 
@@ -372,17 +407,33 @@ if __FILE__ == $0
   message_repo = MessageRepository.new(dbpath)
   attachment_repo = NewsItemAttachmentRepository.new(dbpath)
   client = CompassClient.new(hostname, username, password)
-  client.get_news_feed.each do |item|
-    news_item_repo.save(item)
-    puts "NewsItem | #{item.post_date} | #{item.id} | #{item.title} | #{item.uploader} | https://#{hostname}/Communicate/News/ViewNewsItem.aspx?newsItemId=#{item.id}"
-    item.attachments.each do |attachment|
-      attachment_repo.save(attachment) do
-        client.download_file(file_id: attachment.id)
-      end
+  # 1. Get messages
+  # 2. Ignore any existing messages
+  # 3. For any new messages, generate an email with the message title as a subject and linked news item as the body
+  # 4. Get NewsItems
+  # 5. Ignore any existing news items
+  # 6. For any new news items, generate an email with the news item title as a subject and linked news item as the body
+  client.get_messages.each do |msg|
+    unless message_repo.exists?(msg)
+      news_item = news_item_repo.find(msg.news_item_id)
+      email = CompassEmail.from_message(["james@yob.id.au"], "james@rainbowbooks.com.au", msg, news_item, [])
+      puts "New Message | #{email.to} | #{email.from} | #{email.subject} | #{email.body} | #{email.attachments.size} attachments"
+
+      message_repo.save(msg)
     end
   end
-  client.get_messages.each do |msg|
-    message_repo.save(msg)
-    puts "Message | #{msg.date} | #{msg.id} | #{msg.news_item_id} | #{msg.content_html} | #{msg.sender_name} | https://#{hostname}/Communicate/News/ViewNewsItem.aspx?newsItemId=#{msg.news_item_id}"
+  client.get_news_feed.each do |item|
+    unless news_item_repo.exists?(item)
+      email = CompassEmail.from_news_item(["james@yob.id.au"], "james@rainbowbooks.com.au", item, [])
+      puts "New news Item | #{email.to} | #{email.from} | #{email.subject} | #{email.body} | #{email.attachments.size} attachments"
+
+      news_item_repo.save(item)
+      item.attachments.each do |attachment|
+        attachment_repo.save(attachment) do
+          client.download_file(file_id: attachment.id)
+        end
+      end
+
+    end
   end
 end
