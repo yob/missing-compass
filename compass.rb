@@ -356,7 +356,7 @@ class CompassClient
     if response.code.to_i == 200
       response
     else
-      raise "POST #{path} failed (#{response.code})"
+      raise "POST #{path} failed (#{response.code}) (#{response.body})"
     end
   end
 end
