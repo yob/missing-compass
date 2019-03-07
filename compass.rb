@@ -4,6 +4,8 @@ require 'time'
 
 class NewsItemAttachment
 
+  attr_reader :data
+
   def initialize(data)
     @data = data
   end
@@ -30,6 +32,51 @@ class NewsItemAttachment
 
   def url
     @data.fetch("url", nil)
+  end
+end
+
+class NewsItemAttachmentRepository
+  def initialize(dir)
+    raise ArgumentError, "#{dir} is not a directory" unless File.directory?(dir)
+    @dir = File.expand_path(dir)
+  end
+
+  def exists?(attachment)
+    File.file?(build_path(attachment))
+  end
+
+  def save(attachment, &block)
+    save_metadata(attachment) && save_data(attachment, block)
+  end
+
+  private
+
+  def save_metadata(attachment)
+    return true if exists?(attachment)
+
+    File.open(build_path(attachment), "wb") do |io|
+      io.write(JSON.pretty_generate(attachment.data))
+    end
+  end
+
+  def save_data(attachment, block)
+    return true if data_exists?(attachment)
+
+    File.open(build_data_path(attachment), "wb") do |io|
+      io.write(block.call)
+    end
+  end
+
+  def data_exists?(attachment)
+    File.file?(build_data_path(attachment))
+  end
+
+  def build_path(attachment)
+    File.join(@dir, "attachment-#{attachment.id}.json")
+  end
+
+  def build_data_path(attachment)
+    File.join(@dir, "attachment-#{attachment.id}.bin")
   end
 end
 
@@ -219,7 +266,7 @@ class CompassClient
       path: "#{PATH_DOWNLOAD_FILE}?FileDownloadType=1&file=#{file_id}",
       headers: {"Cookie" => @cookie},
     )
-    puts response.body
+    response.body
   end
 
   def get_messages
@@ -317,10 +364,16 @@ if __FILE__ == $0
   dbpath = File.join(File.expand_path(File.dirname(__FILE__)), "db")
   news_item_repo = NewsItemRepository.new(dbpath)
   message_repo = MessageRepository.new(dbpath)
+  attachment_repo = NewsItemAttachmentRepository.new(dbpath)
   client = CompassClient.new(hostname, username, password)
   client.get_news_feed.each do |item|
     news_item_repo.save(item)
     puts "NewsItem | #{item.post_date} | #{item.id} | #{item.title} | #{item.uploader} | https://#{hostname}/Communicate/News/ViewNewsItem.aspx?newsItemId=#{item.id}"
+    item.attachments.each do |attachment|
+      attachment_repo.save(attachment) do
+        client.download_file(file_id: attachment.id)
+      end
+    end
   end
   client.get_messages.each do |msg|
     message_repo.save(msg)
