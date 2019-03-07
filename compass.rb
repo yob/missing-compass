@@ -157,6 +157,12 @@ class NewsItemRepository
     end
   end
 
+  def all
+    Dir.glob("#{@dir}/news-item-*.json").map do |path|
+      NewsItem.new(JSON.parse(File.read(path)))
+    end
+  end
+
   private
 
   def build_path(news_item)
