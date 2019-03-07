@@ -1,6 +1,7 @@
 require 'net/http'
 require 'json'
 require 'time'
+require 'base64'
 
 class NewsItemAttachment
 
@@ -33,6 +34,16 @@ class NewsItemAttachment
   def url
     @data.fetch("url", nil)
   end
+
+  def bytes
+    if @data.key?("bytes_base64")
+      Base64.decode64(@data.fetch("bytes_base64"))
+    end
+  end
+
+  def add_bytes(bytes)
+    @data["bytes_base64"] = Base64.encode64(bytes.to_s)
+  end
 end
 
 class NewsItemAttachmentRepository
@@ -45,13 +56,7 @@ class NewsItemAttachmentRepository
     File.file?(build_path(attachment))
   end
 
-  def save(attachment, &block)
-    save_metadata(attachment) && save_data(attachment, block)
-  end
-
-  private
-
-  def save_metadata(attachment)
+  def save(attachment)
     return true if exists?(attachment)
 
     File.open(build_path(attachment), "wb") do |io|
@@ -59,25 +64,12 @@ class NewsItemAttachmentRepository
     end
   end
 
-  def save_data(attachment, block)
-    return true if data_exists?(attachment)
-
-    File.open(build_data_path(attachment), "wb") do |io|
-      io.write(block.call)
-    end
-  end
-
-  def data_exists?(attachment)
-    File.file?(build_data_path(attachment))
-  end
+  private
 
   def build_path(attachment)
     File.join(@dir, "attachment-#{attachment.id}.json")
   end
 
-  def build_data_path(attachment)
-    File.join(@dir, "attachment-#{attachment.id}.bin")
-  end
 end
 
 class NewsItem
