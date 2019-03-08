@@ -122,6 +122,10 @@ class NewsItem
     other.is_a?(NewsItem) && @id == other.id
   end
 
+  def url(hostname)
+    "https://#{hostname}/Communicate/News/ViewNewsItem.aspx?newsItemId=#{id}"
+  end
+
   private
 
   def parse_time(str)
@@ -253,26 +257,32 @@ end
 class CompassEmail
   attr_reader :to, :from, :subject, :body, :attachments
 
-  def initialize(to:, from:, subject:, body:, attachments: [])
-    @to, @from, @subject, @body, @attachments = to, from, subject, body, attachments
+  def initialize(to:, from:, subject:, body:, url:, attachments: [])
+    @to, @from, @subject, @body, @url, @attachments = to, from, subject, body, url, attachments
   end
 
-  def self.from_message(to, from, message, news_item, attachments)
+  def body
+    "A new message has been posted to compass.\n\nURL: #{@url}\n\n=================================================\n\n#{@body}"
+  end
+
+  def self.from_message(to, from, message, news_item, url, attachments)
     new(
       to: to,
       from: from,
       subject: message.content_html,
       body: news_item.content,
+      url: url,
       attachments: attachments
     )
   end
 
-  def self.from_news_item(to, from, news_item, attachments)
+  def self.from_news_item(to, from, news_item, url, attachments)
     new(
       to: to,
       from: from,
       subject: news_item.title,
       body: news_item.content,
+      url: url,
       attachments: attachments
     )
   end
@@ -415,6 +425,7 @@ if __FILE__ == $0
       new_messages << message_repo.find(msg.id)
     end
   end
+
   client.get_news_feed.each do |item|
     unless news_item_repo.exists?(item)
       news_item_repo.save(item)
@@ -424,20 +435,23 @@ if __FILE__ == $0
         )
         attachment_repo.save(attachment)
       end
+
       new_news_items << news_item_repo.find(item.id)
     end
   end
 
   new_messages.each do |msg|
     related_news_item = news_item_repo.find(msg.news_item_id)
-    email = CompassEmail.from_message(["james@yob.id.au"], "james@rainbowbooks.com.au", msg, related_news_item, related_news_item.attachments)
+    url = related_news_item.url(hostname)
+    email = CompassEmail.from_message(["james@yob.id.au"], "james@rainbowbooks.com.au", msg, related_news_item, url, related_news_item.attachments)
     puts "New Message | #{email.to} | #{email.from} | #{email.subject} | #{email.body} | #{email.attachments.size} attachments"
   end
 
   new_news_items.reject { |item|
     new_messages.map(&:news_item_id).include?(item.id)
   }.each do |item|
-    email = CompassEmail.from_news_item(["james@yob.id.au"], "james@rainbowbooks.com.au", item, item.attachments)
+    url = item.url(hostname)
+    email = CompassEmail.from_news_item(["james@yob.id.au"], "james@rainbowbooks.com.au", item, url, item.attachments)
     puts "New news Item | #{email.to} | #{email.from} | #{email.subject} | #{email.body} | #{email.attachments.size} attachments"
   end
 end
