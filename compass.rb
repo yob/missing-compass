@@ -425,9 +425,10 @@ if __FILE__ == $0
     unless news_item_repo.exists?(item)
       news_item_repo.save(item)
       item.attachments.each do |attachment|
-        attachment_repo.save(attachment) do
+        attachment.add_bytes(
           client.download_file(file_id: attachment.id)
-        end
+        )
+        attachment_repo.save(attachment)
       end
       new_news_items << news_item_repo.find(item.id)
     end
