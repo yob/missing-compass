@@ -406,12 +406,6 @@ if __FILE__ == $0
   message_repo = MessageRepository.new(dbpath)
   attachment_repo = NewsItemAttachmentRepository.new(dbpath)
   client = CompassClient.new(hostname, username, password)
-  # 1. Get messages
-  # 2. Ignore any existing messages
-  # 3. For any new messages, generate an email with the message title as a subject and linked news item as the body
-  # 4. Get NewsItems
-  # 5. Ignore any existing news items
-  # 6. For any new news items, generate an email with the news item title as a subject and linked news item as the body
   new_messages = []
   new_news_items = []
 
