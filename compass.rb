@@ -434,7 +434,9 @@ if __FILE__ == $0
     puts "New Message | #{email.to} | #{email.from} | #{email.subject} | #{email.body} | #{email.attachments.size} attachments"
   end
 
-  new_news_items.each do |item|
+  new_news_items.reject { |item|
+    new_messages.map(&:news_item_id).include?(item.id)
+  }.each do |item|
     email = CompassEmail.from_news_item(["james@yob.id.au"], "james@rainbowbooks.com.au", item, item.attachments)
     puts "New news Item | #{email.to} | #{email.from} | #{email.subject} | #{email.body} | #{email.attachments.size} attachments"
   end
