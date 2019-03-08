@@ -444,7 +444,7 @@ if __FILE__ == $0
     related_news_item = news_item_repo.find(msg.news_item_id)
     url = related_news_item.url(hostname)
     email = CompassEmail.from_message(["james@yob.id.au"], "james@rainbowbooks.com.au", msg, related_news_item, url, related_news_item.attachments)
-    puts "New Message | #{email.to} | #{email.from} | #{email.subject} | #{email.body} | #{email.attachments.size} attachments"
+    puts "New Message | #{email.to} | #{email.from} | #{email.subject} | #{email.attachments.size} attachments"
   end
 
   new_news_items.reject { |item|
@@ -452,6 +452,6 @@ if __FILE__ == $0
   }.each do |item|
     url = item.url(hostname)
     email = CompassEmail.from_news_item(["james@yob.id.au"], "james@rainbowbooks.com.au", item, url, item.attachments)
-    puts "New news Item | #{email.to} | #{email.from} | #{email.subject} | #{email.body} | #{email.attachments.size} attachments"
+    puts "New news Item | #{email.to} | #{email.from} | #{email.subject} | #{email.attachments.size} attachments"
   end
 end
