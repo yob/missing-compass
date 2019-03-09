@@ -2,6 +2,7 @@ require 'net/http'
 require 'json'
 require 'time'
 require 'base64'
+require 'mail'
 
 class NewsItemAttachment
 
@@ -61,6 +62,13 @@ class NewsItemAttachmentRepository
 
     File.open(build_path(attachment), "wb") do |io|
       io.write(JSON.pretty_generate(attachment.data))
+    end
+  end
+
+  def find(id)
+    path = File.join(@dir, "attachment-#{id}.json")
+    if File.file?(path)
+      NewsItemAttachment.new(JSON.parse(File.read(path)))
     end
   end
 
@@ -405,10 +413,25 @@ class CompassClient
   end
 end
 
+def send_email(email, gmail_username, gmail_password)
+  mail = Mail.new do
+    from     email.from
+    to       email.to
+    subject  email.subject
+    body     email.body
+    email.attachments.each do |attachment|
+      add_file filename: attachment.original_file_name, content: attachment.bytes
+    end
+  end
+
+  mail.delivery_method(:smtp, address: "smtp.gmail.com", port: 587, user_name: gmail_username, password: gmail_password, authentication: 'plain', enable_starttls_auto: true)
+  mail.deliver!
+end
+
 if __FILE__ == $0
-  hostname, username, password = *ARGV
-  if hostname.nil? || username.nil? || password.nil?
-    $stderr.puts "USAGE: ruby compass.rb <school hostname> <username> <password>"
+  hostname, username, password, gmail_username, gmail_password = *ARGV
+  if hostname.nil? || username.nil? || password.nil? || gmail_username.nil? || gmail_password.nil?
+    $stderr.puts "USAGE: ruby compass.rb <school hostname> <username> <password> <gmail-username> <gmail-password>"
     exit(1)
   end
   dbpath = File.join(File.expand_path(File.dirname(__FILE__)), "db")
@@ -442,16 +465,20 @@ if __FILE__ == $0
 
   new_messages.each do |msg|
     related_news_item = news_item_repo.find(msg.news_item_id)
+    attachments = related_news_item.attachments.map { |a| attachment_repo.find(a.id) }
     url = related_news_item.url(hostname)
-    email = CompassEmail.from_message(["james@yob.id.au"], "james@rainbowbooks.com.au", msg, related_news_item, url, related_news_item.attachments)
-    puts "New Message | #{email.to} | #{email.from} | #{email.subject} | #{email.attachments.size} attachments"
+    email = CompassEmail.from_message(["james@yob.id.au"], "james@rainbowbooks.com.au", msg, related_news_item, url, attachments)
+    puts "New Message | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
+    send_email(email, gmail_username, gmail_password)
   end
 
   new_news_items.reject { |item|
     new_messages.map(&:news_item_id).include?(item.id)
   }.each do |item|
     url = item.url(hostname)
-    email = CompassEmail.from_news_item(["james@yob.id.au"], "james@rainbowbooks.com.au", item, url, item.attachments)
-    puts "New news Item | #{email.to} | #{email.from} | #{email.subject} | #{email.attachments.size} attachments"
+    attachments = item.attachments.map { |a| attachment_repo.find(a.id) }
+    email = CompassEmail.from_news_item(["james@yob.id.au"], "james@rainbowbooks.com.au", item, url, attachments)
+    puts "New news Item | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
+    send_email(email, gmail_username, gmail_password)
   end
 end
