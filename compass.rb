@@ -277,7 +277,26 @@ class CompassEmail
     "A new message has been posted to compass.\n\nURL: #{@url}\n\n=================================================\n\n#{compacted_body}"
   end
 
+  def charset
+    if ascii_body?
+      "ASCII"
+    elsif utf8_body?
+      "UTF-8"
+    else
+      raise "unrecognised text encoding"
+    end
+  end
+
   private
+
+  def ascii_body?
+    @body.to_s.ascii_only?
+  end
+
+  def utf8_body?
+    temp_body = @body.to_s.dup.force_encoding("UTF-8")
+    temp_body.valid_encoding?
+  end
 
   def compacted_body
     @body.to_s.gsub("\r","").gsub("\n\n", "\n")
@@ -428,7 +447,10 @@ def send_email(email, gmail_username, gmail_password)
     from     email.from
     to       email.to
     subject  email.subject
-    body     email.body
+    text_part do
+      content_type "text/plain; charset=#{email.charset}"
+      body     email.body
+    end
     email.attachments.each do |attachment|
       add_file filename: attachment.original_file_name, content: attachment.bytes
     end
