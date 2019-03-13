@@ -274,7 +274,13 @@ class CompassEmail
   end
 
   def body
-    "A new message has been posted to compass.\n\nURL: #{@url}\n\n=================================================\n\n#{@body}"
+    "A new message has been posted to compass.\n\nURL: #{@url}\n\n=================================================\n\n#{compacted_body}"
+  end
+
+  private
+
+  def compacted_body
+    @body.to_s.gsub("\r","").gsub("\n\n", "\n")
   end
 
   def self.from_message(to, from, message, news_item, url, attachments)
