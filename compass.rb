@@ -263,10 +263,14 @@ class MessageRepository
 end
 
 class CompassEmail
-  attr_reader :to, :from, :subject, :body, :attachments
+  attr_reader :to, :from, :body, :attachments
 
   def initialize(to:, from:, subject:, body:, url:, attachments: [])
     @to, @from, @subject, @body, @url, @attachments = to, from, subject, body, url, attachments
+  end
+
+  def subject
+    "Compass: #{@subject}"
   end
 
   def body
