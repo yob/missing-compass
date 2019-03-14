@@ -499,7 +499,7 @@ if __FILE__ == $0
     related_news_item = news_item_repo.find(msg.news_item_id)
     attachments = related_news_item.attachments.map { |a| attachment_repo.find(a.id) }
     url = related_news_item.url(hostname)
-    email = CompassEmail.from_message(["james@yob.id.au"], "james@rainbowbooks.com.au", msg, related_news_item, url, attachments)
+    email = CompassEmail.from_message(["james@yob.id.au","angefoxy@yahoo.com.au"], "james@rainbowbooks.com.au", msg, related_news_item, url, attachments)
     puts "New Message | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
     send_email(email, gmail_username, gmail_password)
   end
@@ -509,7 +509,7 @@ if __FILE__ == $0
   }.each do |item|
     url = item.url(hostname)
     attachments = item.attachments.map { |a| attachment_repo.find(a.id) }
-    email = CompassEmail.from_news_item(["james@yob.id.au"], "james@rainbowbooks.com.au", item, url, attachments)
+    email = CompassEmail.from_news_item(["james@yob.id.au","angefoxy@yahoo.com.au"], "james@rainbowbooks.com.au", item, url, attachments)
     puts "New news Item | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
     send_email(email, gmail_username, gmail_password)
   end
