@@ -10,7 +10,6 @@ docker run \
   -v `pwd`:/work:rw \
   --mount source=missing-compass-gems,target=/usr/local/bundle  \
   -w /work \
-  -i \
   --entrypoint /work/scripts/bundle-exec \
   -t ruby:2.6.2 \
   "${@-bash}" # default command to launch in the container
