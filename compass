@@ -267,10 +267,10 @@ module MissingCompass
   end
 
   class CompassEmail
-    attr_reader :to, :from, :attachments
+    attr_reader :to, :attachments
 
-    def initialize(to:, from:, subject:, body:, url:, attachments: [])
-      @to, @from, @subject, @body, @url, @attachments = to, from, subject, body, url, attachments
+    def initialize(to:, subject:, body:, url:, attachments: [])
+      @to, @subject, @body, @url, @attachments = to, subject, body, url, attachments
     end
 
     def subject
@@ -306,10 +306,9 @@ module MissingCompass
       @body.to_s.gsub("\r","").gsub("\n\n", "\n")
     end
 
-    def self.from_message(to, from, message, news_item, url, attachments)
+    def self.from_message(to, message, news_item, url, attachments)
       new(
         to: to,
-        from: from,
         subject: message.content_html,
         body: news_item.content,
         url: url,
@@ -317,10 +316,9 @@ module MissingCompass
       )
     end
 
-    def self.from_news_item(to, from, news_item, url, attachments)
+    def self.from_news_item(to, news_item, url, attachments)
       new(
         to: to,
-        from: from,
         subject: news_item.title,
         body: news_item.content,
         url: url,
@@ -481,8 +479,8 @@ module MissingCompass
         related_news_item = news_item_repo.find(msg.news_item_id)
         attachments = related_news_item.attachments.map { |a| attachment_repo.find(a.id) }
         url = related_news_item.url(compass_host)
-        email = MissingCompass::CompassEmail.from_message(to, "james@rainbowbooks.com.au", msg, related_news_item, url, attachments)
-        puts "New Message | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
+        email = MissingCompass::CompassEmail.from_message(to, msg, related_news_item, url, attachments)
+        puts "New Message | #{email.to} #{email.subject} | #{attachments.size} attachments"
         send_email(email, gmail_user, gmail_pass)
       end
 
@@ -491,8 +489,8 @@ module MissingCompass
       }.each do |item|
         url = item.url(compass_host)
         attachments = item.attachments.map { |a| attachment_repo.find(a.id) }
-        email = MissingCompass::CompassEmail.from_news_item(to, "james@rainbowbooks.com.au", item, url, attachments)
-        puts "New news Item | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
+        email = MissingCompass::CompassEmail.from_news_item(to, item, url, attachments)
+        puts "New news Item | #{email.to} | #{email.subject} | #{attachments.size} attachments"
         send_email(email, gmail_user, gmail_pass)
       end
     end
@@ -501,7 +499,6 @@ module MissingCompass
 
     def send_email(email, gmail_username, gmail_password)
       mail = Mail.new do
-        from     email.from
         to       email.to
         subject  email.subject
         text_part do
