@@ -4,7 +4,7 @@
 
 cd $(dirname $0)/..
 
-docker volume create missing-compass-gems
+docker volume create missing-compass-gems > /dev/null
 
 docker run \
   -v `pwd`:/work:rw \
