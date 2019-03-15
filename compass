@@ -505,20 +505,20 @@ Clamp do
       new_messages.each do |msg|
         related_news_item = news_item_repo.find(msg.news_item_id)
         attachments = related_news_item.attachments.map { |a| attachment_repo.find(a.id) }
-        url = related_news_item.url(hostname)
+        url = related_news_item.url(compass_host)
         email = CompassEmail.from_message(["james@yob.id.au","angefoxy@yahoo.com.au"], "james@rainbowbooks.com.au", msg, related_news_item, url, attachments)
         puts "New Message | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
-        send_email(email, gmail_username, gmail_password)
+        send_email(email, gmail_user, gmail_pass)
       end
 
       new_news_items.reject { |item|
         new_messages.map(&:news_item_id).include?(item.id)
       }.each do |item|
-        url = item.url(hostname)
+        url = item.url(compass_host)
         attachments = item.attachments.map { |a| attachment_repo.find(a.id) }
         email = CompassEmail.from_news_item(["james@yob.id.au","angefoxy@yahoo.com.au"], "james@rainbowbooks.com.au", item, url, attachments)
         puts "New news Item | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
-        send_email(email, gmail_username, gmail_password)
+        send_email(email, gmail_user, gmail_pass)
       end
     end
   end
