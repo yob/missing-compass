@@ -526,6 +526,7 @@ Clamp do
   option "--compass-pass", "<password>", "Yout compass password", required: true
   option "--gmail-user", "<username>", "Your gmail username", required: true
   option "--gmail-pass", "<password>", "Your gmail password", required: true
+  option "--to", "<email address>", "Who to send the emails to - can be provided multiple times", required: true, multivalued: true
 
   subcommand "email-news", "Initialize the repository" do
 
@@ -538,7 +539,7 @@ Clamp do
         compass_pass: compass_pass,
         gmail_user: gmail_user,
         gmail_pass: gmail_pass,
-        to: ["james@yob.id.au","angefoxy@yahoo.com.au"]
+        to: to_list
       )
     end
   end
