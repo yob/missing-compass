@@ -1,8 +1,11 @@
+#!/usr/bin/env ruby
+
 require 'net/http'
 require 'json'
 require 'time'
 require 'base64'
 require 'mail'
+require 'clamp'
 
 class NewsItemAttachment
 
@@ -460,57 +463,63 @@ def send_email(email, gmail_username, gmail_password)
   mail.deliver!
 end
 
-if __FILE__ == $0
-  hostname, username, password, gmail_username, gmail_password = *ARGV
-  if hostname.nil? || username.nil? || password.nil? || gmail_username.nil? || gmail_password.nil?
-    $stderr.puts "USAGE: ruby compass.rb <school hostname> <username> <password> <gmail-username> <gmail-password>"
-    exit(1)
-  end
-  dbpath = File.join(File.expand_path(File.dirname(__FILE__)), "db")
-  news_item_repo = NewsItemRepository.new(dbpath)
-  message_repo = MessageRepository.new(dbpath)
-  attachment_repo = NewsItemAttachmentRepository.new(dbpath)
-  client = CompassClient.new(hostname, username, password)
-  new_messages = []
-  new_news_items = []
+Clamp do
+  option "--compass-host", "<hostname>", "The compass hostname for your school", required: true
+  option "--compass-user", "<username>", "Your compass username", required: true
+  option "--compass-pass", "<password>", "Yout compass password", required: true
+  option "--gmail-user", "<username>", "Your gmail username", required: true
+  option "--gmail-pass", "<password>", "Your gmail password", required: true
 
-  client.get_messages.each do |msg|
-    unless message_repo.exists?(msg)
-      message_repo.save(msg)
-      new_messages << message_repo.find(msg.id)
-    end
-  end
+  subcommand "email-news", "Initialize the repository" do
 
-  client.get_news_feed.each do |item|
-    unless news_item_repo.exists?(item)
-      news_item_repo.save(item)
-      item.attachments.each do |attachment|
-        attachment.add_bytes(
-          client.download_file(file_id: attachment.id)
-        )
-        attachment_repo.save(attachment)
+    def execute
+      dbpath = File.join(File.expand_path(File.dirname(__FILE__)), "db")
+      news_item_repo = NewsItemRepository.new(dbpath)
+      message_repo = MessageRepository.new(dbpath)
+      attachment_repo = NewsItemAttachmentRepository.new(dbpath)
+      client = CompassClient.new(compass_host, compass_user, compass_pass)
+      new_messages = []
+      new_news_items = []
+
+      client.get_messages.each do |msg|
+        unless message_repo.exists?(msg)
+          message_repo.save(msg)
+          new_messages << message_repo.find(msg.id)
+        end
       end
 
-      new_news_items << news_item_repo.find(item.id)
+      client.get_news_feed.each do |item|
+        unless news_item_repo.exists?(item)
+          news_item_repo.save(item)
+          item.attachments.each do |attachment|
+            attachment.add_bytes(
+              client.download_file(file_id: attachment.id)
+            )
+            attachment_repo.save(attachment)
+          end
+
+          new_news_items << news_item_repo.find(item.id)
+        end
+      end
+
+      new_messages.each do |msg|
+        related_news_item = news_item_repo.find(msg.news_item_id)
+        attachments = related_news_item.attachments.map { |a| attachment_repo.find(a.id) }
+        url = related_news_item.url(hostname)
+        email = CompassEmail.from_message(["james@yob.id.au","angefoxy@yahoo.com.au"], "james@rainbowbooks.com.au", msg, related_news_item, url, attachments)
+        puts "New Message | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
+        send_email(email, gmail_username, gmail_password)
+      end
+
+      new_news_items.reject { |item|
+        new_messages.map(&:news_item_id).include?(item.id)
+      }.each do |item|
+        url = item.url(hostname)
+        attachments = item.attachments.map { |a| attachment_repo.find(a.id) }
+        email = CompassEmail.from_news_item(["james@yob.id.au","angefoxy@yahoo.com.au"], "james@rainbowbooks.com.au", item, url, attachments)
+        puts "New news Item | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
+        send_email(email, gmail_username, gmail_password)
+      end
     end
-  end
-
-  new_messages.each do |msg|
-    related_news_item = news_item_repo.find(msg.news_item_id)
-    attachments = related_news_item.attachments.map { |a| attachment_repo.find(a.id) }
-    url = related_news_item.url(hostname)
-    email = CompassEmail.from_message(["james@yob.id.au","angefoxy@yahoo.com.au"], "james@rainbowbooks.com.au", msg, related_news_item, url, attachments)
-    puts "New Message | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
-    send_email(email, gmail_username, gmail_password)
-  end
-
-  new_news_items.reject { |item|
-    new_messages.map(&:news_item_id).include?(item.id)
-  }.each do |item|
-    url = item.url(hostname)
-    attachments = item.attachments.map { |a| attachment_repo.find(a.id) }
-    email = CompassEmail.from_news_item(["james@yob.id.au","angefoxy@yahoo.com.au"], "james@rainbowbooks.com.au", item, url, attachments)
-    puts "New news Item | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
-    send_email(email, gmail_username, gmail_password)
   end
 end
