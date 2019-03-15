@@ -445,37 +445,10 @@ module MissingCompass
       end
     end
   end
-end
 
-def send_email(email, gmail_username, gmail_password)
-  mail = Mail.new do
-    from     email.from
-    to       email.to
-    subject  email.subject
-    text_part do
-      content_type "text/plain; charset=#{email.charset}"
-      body     email.body
-    end
-    email.attachments.each do |attachment|
-      add_file filename: attachment.original_file_name, content: attachment.bytes
-    end
-  end
+  class Syncer
 
-  mail.delivery_method(:smtp, address: "smtp.gmail.com", port: 587, user_name: gmail_username, password: gmail_password, authentication: 'plain', enable_starttls_auto: true)
-  mail.deliver!
-end
-
-Clamp do
-  option "--compass-host", "<hostname>", "The compass hostname for your school", required: true
-  option "--compass-user", "<username>", "Your compass username", required: true
-  option "--compass-pass", "<password>", "Yout compass password", required: true
-  option "--gmail-user", "<username>", "Your gmail username", required: true
-  option "--gmail-pass", "<password>", "Your gmail password", required: true
-
-  subcommand "email-news", "Initialize the repository" do
-
-    def execute
-      dbpath = File.join(File.expand_path(File.dirname(__FILE__)), "db")
+    def run(dbpath:, compass_host:, compass_user:, compass_pass:, gmail_user:, gmail_pass:, to: )
       news_item_repo = MissingCompass::NewsItemRepository.new(dbpath)
       message_repo = MissingCompass::MessageRepository.new(dbpath)
       attachment_repo = MissingCompass::NewsItemAttachmentRepository.new(dbpath)
@@ -508,7 +481,7 @@ Clamp do
         related_news_item = news_item_repo.find(msg.news_item_id)
         attachments = related_news_item.attachments.map { |a| attachment_repo.find(a.id) }
         url = related_news_item.url(compass_host)
-        email = MissingCompass::CompassEmail.from_message(["james@yob.id.au","angefoxy@yahoo.com.au"], "james@rainbowbooks.com.au", msg, related_news_item, url, attachments)
+        email = MissingCompass::CompassEmail.from_message(to, "james@rainbowbooks.com.au", msg, related_news_item, url, attachments)
         puts "New Message | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
         send_email(email, gmail_user, gmail_pass)
       end
@@ -518,10 +491,55 @@ Clamp do
       }.each do |item|
         url = item.url(compass_host)
         attachments = item.attachments.map { |a| attachment_repo.find(a.id) }
-        email = MissingCompass::CompassEmail.from_news_item(["james@yob.id.au","angefoxy@yahoo.com.au"], "james@rainbowbooks.com.au", item, url, attachments)
+        email = MissingCompass::CompassEmail.from_news_item(to, "james@rainbowbooks.com.au", item, url, attachments)
         puts "New news Item | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
         send_email(email, gmail_user, gmail_pass)
       end
+    end
+
+    private
+
+    def send_email(email, gmail_username, gmail_password)
+      mail = Mail.new do
+        from     email.from
+        to       email.to
+        subject  email.subject
+        text_part do
+          content_type "text/plain; charset=#{email.charset}"
+          body     email.body
+        end
+        email.attachments.each do |attachment|
+          add_file filename: attachment.original_file_name, content: attachment.bytes
+        end
+      end
+
+      mail.delivery_method(:smtp, address: "smtp.gmail.com", port: 587, user_name: gmail_username, password: gmail_password, authentication: 'plain', enable_starttls_auto: true)
+      mail.deliver!
+    end
+
+  end
+end
+
+Clamp do
+  option "--compass-host", "<hostname>", "The compass hostname for your school", required: true
+  option "--compass-user", "<username>", "Your compass username", required: true
+  option "--compass-pass", "<password>", "Yout compass password", required: true
+  option "--gmail-user", "<username>", "Your gmail username", required: true
+  option "--gmail-pass", "<password>", "Your gmail password", required: true
+
+  subcommand "email-news", "Initialize the repository" do
+
+    def execute
+      app = MissingCompass::Syncer.new
+      app.run(
+        dbpath: File.join(File.expand_path(File.dirname(__FILE__)), "db"),
+        compass_host: compass_host,
+        compass_user: compass_user,
+        compass_pass: compass_pass,
+        gmail_user: gmail_user,
+        gmail_pass: gmail_pass,
+        to: ["james@yob.id.au","angefoxy@yahoo.com.au"]
+      )
     end
   end
 end
