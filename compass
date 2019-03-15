@@ -7,440 +7,442 @@ require 'base64'
 require 'mail'
 require 'clamp'
 
-class NewsItemAttachment
+module MissingCompass
+  class NewsItemAttachment
 
-  attr_reader :data
+    attr_reader :data
 
-  def initialize(data)
-    @data = data
-  end
-
-  def id
-    @data.fetch("assetId", 0)
-  end
-
-  def is_image
-    @data.fetch("isImage", false)
-  end
-
-  def name
-    @data.fetch("name", "")
-  end
-
-  def original_file_name
-    @data.fetch("originalFileName", "")
-  end
-
-  def source_organisation_id
-    @data.fetch("sourceOrganisationId", nil)
-  end
-
-  def url
-    @data.fetch("url", nil)
-  end
-
-  def bytes
-    if @data.key?("bytes_base64")
-      Base64.decode64(@data.fetch("bytes_base64"))
+    def initialize(data)
+      @data = data
     end
-  end
 
-  def add_bytes(bytes)
-    @data["bytes_base64"] = Base64.encode64(bytes.to_s)
-  end
-end
-
-class NewsItemAttachmentRepository
-  def initialize(dir)
-    raise ArgumentError, "#{dir} is not a directory" unless File.directory?(dir)
-    @dir = File.expand_path(dir)
-  end
-
-  def exists?(attachment)
-    File.file?(build_path(attachment))
-  end
-
-  def save(attachment)
-    return true if exists?(attachment)
-
-    File.open(build_path(attachment), "wb") do |io|
-      io.write(JSON.pretty_generate(attachment.data))
+    def id
+      @data.fetch("assetId", 0)
     end
-  end
 
-  def find(id)
-    path = File.join(@dir, "attachment-#{id}.json")
-    if File.file?(path)
-      NewsItemAttachment.new(JSON.parse(File.read(path)))
+    def is_image
+      @data.fetch("isImage", false)
     end
-  end
 
-  private
+    def name
+      @data.fetch("name", "")
+    end
 
-  def build_path(attachment)
-    File.join(@dir, "attachment-#{attachment.id}.json")
-  end
+    def original_file_name
+      @data.fetch("originalFileName", "")
+    end
 
-end
+    def source_organisation_id
+      @data.fetch("sourceOrganisationId", nil)
+    end
 
-class NewsItem
+    def url
+      @data.fetch("url", nil)
+    end
 
-  attr_reader :data
-
-  def initialize(data)
-    @data = data
-  end
-
-  def id
-    @data.fetch("newsItemId", 0)
-  end
-
-  def attachments
-    @data.fetch("attachments", []).map { |item|
-      NewsItemAttachment.new(item)
-    }
-  end
-
-  def content
-    @data.fetch("content", "")
-  end
-
-  def content_html
-    @data.fetch("contentHtml", "")
-  end
-
-  def post_date
-    parse_time(@data.fetch("postDateUtc", ""))
-  end
-
-  def priority
-    @data.fetch("priority", false)
-  end
-
-  def title
-    @data.fetch("title", "")
-  end
-
-  def uploader
-    @data.fetch("uploader", "")
-  end
-
-  def user_image_url
-    @data.fetch("userImageUrl", "")
-  end
-
-  def eql?(other)
-    other.is_a?(NewsItem) && @id == other.id
-  end
-
-  def url(hostname)
-    "https://#{hostname}/Communicate/News/ViewNewsItem.aspx?newsItemId=#{id}"
-  end
-
-  private
-
-  def parse_time(str)
-    Time.iso8601(str)
-  end
-end
-
-class NewsItemRepository
-  def initialize(dir)
-    raise ArgumentError, "#{dir} is not a directory" unless File.directory?(dir)
-    @dir = File.expand_path(dir)
-  end
-
-  def exists?(news_item)
-    File.file?(build_path(news_item))
-  end
-
-  def save(news_item)
-    if !exists?(news_item)
-      File.open(build_path(news_item), "wb") do |io|
-        io.write(JSON.pretty_generate(news_item.data))
+    def bytes
+      if @data.key?("bytes_base64")
+        Base64.decode64(@data.fetch("bytes_base64"))
       end
-    else
-      false
+    end
+
+    def add_bytes(bytes)
+      @data["bytes_base64"] = Base64.encode64(bytes.to_s)
     end
   end
 
-  def find(id)
-    path = File.join(@dir, "news-item-#{id}.json")
-    if File.file?(path)
-      NewsItem.new(JSON.parse(File.read(path)))
+  class NewsItemAttachmentRepository
+    def initialize(dir)
+      raise ArgumentError, "#{dir} is not a directory" unless File.directory?(dir)
+      @dir = File.expand_path(dir)
     end
-  end
 
-  def all
-    Dir.glob("#{@dir}/news-item-*.json").map do |path|
-      NewsItem.new(JSON.parse(File.read(path)))
+    def exists?(attachment)
+      File.file?(build_path(attachment))
     end
-  end
 
-  private
+    def save(attachment)
+      return true if exists?(attachment)
 
-  def build_path(news_item)
-    File.join(@dir, "news-item-#{news_item.id}.json")
-  end
-end
-
-class Message
-
-  attr_reader :data
-
-  def initialize(data)
-    @data = data
-  end
-
-  def id
-    @data.fetch("id", 0)
-  end
-
-  def archived
-    @data.fetch("archived", false)
-  end
-
-  def content_html
-    @data.fetch("contentHtml", "")
-  end
-
-  def eql?(other)
-    other.is_a?(Message) && @id == other.id
-  end
-
-  def date
-    parse_time(@data.fetch("date", ""))
-  end
-
-  def news_item_id
-    @data.fetch("parameters", {}).fetch("newsItemId", nil)
-  end
-
-  def sender_name
-    @data.fetch("sender", {}).fetch("reportName","")
-  end
-
-  def sender_id
-    @data.fetch("sender", {}).fetch("userId","")
-  end
-
-  private
-
-  def parse_time(str)
-    Time.iso8601(str)
-  end
-end
-
-class MessageRepository
-  def initialize(dir)
-    raise ArgumentError, "#{dir} is not a directory" unless File.directory?(dir)
-    @dir = File.expand_path(dir)
-  end
-
-  def exists?(msg)
-    File.file?(build_path(msg))
-  end
-
-  def save(msg)
-    if !exists?(msg)
-      File.open(build_path(msg), "wb") do |io|
-        io.write(JSON.pretty_generate(msg.data))
+      File.open(build_path(attachment), "wb") do |io|
+        io.write(JSON.pretty_generate(attachment.data))
       end
-    else
-      false
+    end
+
+    def find(id)
+      path = File.join(@dir, "attachment-#{id}.json")
+      if File.file?(path)
+        NewsItemAttachment.new(JSON.parse(File.read(path)))
+      end
+    end
+
+    private
+
+    def build_path(attachment)
+      File.join(@dir, "attachment-#{attachment.id}.json")
+    end
+
+  end
+
+  class NewsItem
+
+    attr_reader :data
+
+    def initialize(data)
+      @data = data
+    end
+
+    def id
+      @data.fetch("newsItemId", 0)
+    end
+
+    def attachments
+      @data.fetch("attachments", []).map { |item|
+        NewsItemAttachment.new(item)
+      }
+    end
+
+    def content
+      @data.fetch("content", "")
+    end
+
+    def content_html
+      @data.fetch("contentHtml", "")
+    end
+
+    def post_date
+      parse_time(@data.fetch("postDateUtc", ""))
+    end
+
+    def priority
+      @data.fetch("priority", false)
+    end
+
+    def title
+      @data.fetch("title", "")
+    end
+
+    def uploader
+      @data.fetch("uploader", "")
+    end
+
+    def user_image_url
+      @data.fetch("userImageUrl", "")
+    end
+
+    def eql?(other)
+      other.is_a?(NewsItem) && @id == other.id
+    end
+
+    def url(hostname)
+      "https://#{hostname}/Communicate/News/ViewNewsItem.aspx?newsItemId=#{id}"
+    end
+
+    private
+
+    def parse_time(str)
+      Time.iso8601(str)
     end
   end
 
-  def find(id)
-    path = File.join(@dir, "message-#{id}.json")
-    if File.file?(path)
-      Message.new(JSON.parse(File.read(path)))
+  class NewsItemRepository
+    def initialize(dir)
+      raise ArgumentError, "#{dir} is not a directory" unless File.directory?(dir)
+      @dir = File.expand_path(dir)
+    end
+
+    def exists?(news_item)
+      File.file?(build_path(news_item))
+    end
+
+    def save(news_item)
+      if !exists?(news_item)
+        File.open(build_path(news_item), "wb") do |io|
+          io.write(JSON.pretty_generate(news_item.data))
+        end
+      else
+        false
+      end
+    end
+
+    def find(id)
+      path = File.join(@dir, "news-item-#{id}.json")
+      if File.file?(path)
+        NewsItem.new(JSON.parse(File.read(path)))
+      end
+    end
+
+    def all
+      Dir.glob("#{@dir}/news-item-*.json").map do |path|
+        NewsItem.new(JSON.parse(File.read(path)))
+      end
+    end
+
+    private
+
+    def build_path(news_item)
+      File.join(@dir, "news-item-#{news_item.id}.json")
     end
   end
 
-  private
+  class Message
 
-  def build_path(msg)
-    File.join(@dir, "message-#{msg.id}.json")
-  end
-end
+    attr_reader :data
 
-class CompassEmail
-  attr_reader :to, :from, :attachments
+    def initialize(data)
+      @data = data
+    end
 
-  def initialize(to:, from:, subject:, body:, url:, attachments: [])
-    @to, @from, @subject, @body, @url, @attachments = to, from, subject, body, url, attachments
-  end
+    def id
+      @data.fetch("id", 0)
+    end
 
-  def subject
-    "Compass: #{@subject}"
-  end
+    def archived
+      @data.fetch("archived", false)
+    end
 
-  def body
-    "A new message has been posted to compass.\n\nURL: #{@url}\n\n=================================================\n\n#{compacted_body}"
-  end
+    def content_html
+      @data.fetch("contentHtml", "")
+    end
 
-  def charset
-    if ascii_body?
-      "ASCII"
-    elsif utf8_body?
-      "UTF-8"
-    else
-      raise "unrecognised text encoding"
+    def eql?(other)
+      other.is_a?(Message) && @id == other.id
+    end
+
+    def date
+      parse_time(@data.fetch("date", ""))
+    end
+
+    def news_item_id
+      @data.fetch("parameters", {}).fetch("newsItemId", nil)
+    end
+
+    def sender_name
+      @data.fetch("sender", {}).fetch("reportName","")
+    end
+
+    def sender_id
+      @data.fetch("sender", {}).fetch("userId","")
+    end
+
+    private
+
+    def parse_time(str)
+      Time.iso8601(str)
     end
   end
 
-  private
-
-  def ascii_body?
-    @body.to_s.ascii_only?
-  end
-
-  def utf8_body?
-    temp_body = @body.to_s.dup.force_encoding("UTF-8")
-    temp_body.valid_encoding?
-  end
-
-  def compacted_body
-    @body.to_s.gsub("\r","").gsub("\n\n", "\n")
-  end
-
-  def self.from_message(to, from, message, news_item, url, attachments)
-    new(
-      to: to,
-      from: from,
-      subject: message.content_html,
-      body: news_item.content,
-      url: url,
-      attachments: attachments
-    )
-  end
-
-  def self.from_news_item(to, from, news_item, url, attachments)
-    new(
-      to: to,
-      from: from,
-      subject: news_item.title,
-      body: news_item.content,
-      url: url,
-      attachments: attachments
-    )
-  end
-end
-
-class CompassClient
-  USER_AGENT = "iOS/12_1_2 type/iPhone CompassEducation/4.5.3"
-  PATH_AUTH = "/services/admin.svc/AuthenticateUserCredentials"
-  PATH_NEWSFEED = "/services/mobile.svc/GetNewsFeed?sessionstate=readonly"
-  PATH_GET_MESSAGES = "/services/mobile.svc/GetMessages?sessionstate=readonly"
-  PATH_PST_CYCLES = "/services/mobile.svc/GetPstCycles?sessionstate=readonly"
-  PATH_CHECK_PARENT_DETAILS = "/services/mobile.svc/CheckParentDetails?sessionstate=readonly"
-  PATH_GET_PERSONAL_DETAILS = "/services/mobile.svc/GetPersonalDetails?sessionstate=readonly"
-  PATH_DOWNLOAD_FILE = "/services/FileDownload/FileRequestHandler"
-
-  def initialize(hostname, username, password)
-    @hostname = hostname
-    @cookie = generate_cookie(username, password)
-  end
-
-  def check_parent_details
-    response = post(
-      path: PATH_CHECK_PARENT_DETAILS,
-      headers: {"Cookie" => @cookie},
-    )
-    JSON.parse(response.body)
-  end
-
-  def download_file(file_id: )
-    response = get(
-      path: "#{PATH_DOWNLOAD_FILE}?FileDownloadType=1&file=#{file_id}",
-      headers: {"Cookie" => @cookie},
-    )
-    response.body
-  end
-
-  def get_messages
-    response = post(
-      path: PATH_GET_MESSAGES,
-      headers: {"Cookie" => @cookie},
-    )
-    data = JSON.parse(response.body)
-    data.fetch("d",{}).fetch("data", []).map { |item|
-      Message.new(item)
-    }.sort_by(&:date)
-  end
-
-  def get_news_feed
-    response = post(
-      path: PATH_NEWSFEED,
-      headers: {"Cookie" => @cookie},
-    )
-    data = JSON.parse(response.body)
-    data.fetch("d",{}).fetch("data", []).map { |item|
-      NewsItem.new(item)
-    }.sort_by(&:post_date)
-  end
-
-  def get_personal_details
-    response = post(
-      path: PATH_GET_PERSONAL_DETAILS,
-      headers: {"Cookie" => @cookie},
-    )
-    JSON.parse(response.body)
-  end
-
-  # this seems to be parent teacher interview slots
-  def get_pst_cycles
-    response = post(
-      path: PATH_PST_CYCLES,
-      headers: {"Cookie" => @cookie},
-    )
-    JSON.parse(response.body)
-  end
-
-  private
-
-  def generate_cookie(username, password)
-    response = post(
-      path: PATH_AUTH,
-      headers: {"Content-Type" => "application/json"},
-      body: JSON.dump({username: username, password: password, sessionstate: "readonly"})
-    )
-    session_id = response["Set-Cookie"][/ASP.NET_SessionId=[a-f0-9\-]+/]
-    raise "login failed" if session_id.nil?
-    session_id
-  end
-
-  def get(path:, headers: {})
-    headers["User-Agent"] = USER_AGENT
-
-    request = Net::HTTP::Get.new(path, headers)
-
-    response = Net::HTTP.start(@hostname, 443, use_ssl: true) do |http|
-      http.request(request)
+  class MessageRepository
+    def initialize(dir)
+      raise ArgumentError, "#{dir} is not a directory" unless File.directory?(dir)
+      @dir = File.expand_path(dir)
     end
 
-    if response.code.to_i == 200
-      response
-    else
-      raise "GET #{path} failed (#{response.code})"
+    def exists?(msg)
+      File.file?(build_path(msg))
+    end
+
+    def save(msg)
+      if !exists?(msg)
+        File.open(build_path(msg), "wb") do |io|
+          io.write(JSON.pretty_generate(msg.data))
+        end
+      else
+        false
+      end
+    end
+
+    def find(id)
+      path = File.join(@dir, "message-#{id}.json")
+      if File.file?(path)
+        Message.new(JSON.parse(File.read(path)))
+      end
+    end
+
+    private
+
+    def build_path(msg)
+      File.join(@dir, "message-#{msg.id}.json")
     end
   end
 
-  def post(path:, headers: {}, body: nil )
-    headers["User-Agent"] = USER_AGENT
+  class CompassEmail
+    attr_reader :to, :from, :attachments
 
-    request = Net::HTTP::Post.new(path, headers)
-    request.body = body if body
-
-    response = Net::HTTP.start(@hostname, 443, use_ssl: true) do |http|
-      http.request(request)
+    def initialize(to:, from:, subject:, body:, url:, attachments: [])
+      @to, @from, @subject, @body, @url, @attachments = to, from, subject, body, url, attachments
     end
 
-    if response.code.to_i == 200
-      response
-    else
-      raise "POST #{path} failed (#{response.code}) (#{response.body})"
+    def subject
+      "Compass: #{@subject}"
+    end
+
+    def body
+      "A new message has been posted to compass.\n\nURL: #{@url}\n\n=================================================\n\n#{compacted_body}"
+    end
+
+    def charset
+      if ascii_body?
+        "ASCII"
+      elsif utf8_body?
+        "UTF-8"
+      else
+        raise "unrecognised text encoding"
+      end
+    end
+
+    private
+
+    def ascii_body?
+      @body.to_s.ascii_only?
+    end
+
+    def utf8_body?
+      temp_body = @body.to_s.dup.force_encoding("UTF-8")
+      temp_body.valid_encoding?
+    end
+
+    def compacted_body
+      @body.to_s.gsub("\r","").gsub("\n\n", "\n")
+    end
+
+    def self.from_message(to, from, message, news_item, url, attachments)
+      new(
+        to: to,
+        from: from,
+        subject: message.content_html,
+        body: news_item.content,
+        url: url,
+        attachments: attachments
+      )
+    end
+
+    def self.from_news_item(to, from, news_item, url, attachments)
+      new(
+        to: to,
+        from: from,
+        subject: news_item.title,
+        body: news_item.content,
+        url: url,
+        attachments: attachments
+      )
+    end
+  end
+
+  class CompassClient
+    USER_AGENT = "iOS/12_1_2 type/iPhone CompassEducation/4.5.3"
+    PATH_AUTH = "/services/admin.svc/AuthenticateUserCredentials"
+    PATH_NEWSFEED = "/services/mobile.svc/GetNewsFeed?sessionstate=readonly"
+    PATH_GET_MESSAGES = "/services/mobile.svc/GetMessages?sessionstate=readonly"
+    PATH_PST_CYCLES = "/services/mobile.svc/GetPstCycles?sessionstate=readonly"
+    PATH_CHECK_PARENT_DETAILS = "/services/mobile.svc/CheckParentDetails?sessionstate=readonly"
+    PATH_GET_PERSONAL_DETAILS = "/services/mobile.svc/GetPersonalDetails?sessionstate=readonly"
+    PATH_DOWNLOAD_FILE = "/services/FileDownload/FileRequestHandler"
+
+    def initialize(hostname, username, password)
+      @hostname = hostname
+      @cookie = generate_cookie(username, password)
+    end
+
+    def check_parent_details
+      response = post(
+        path: PATH_CHECK_PARENT_DETAILS,
+        headers: {"Cookie" => @cookie},
+      )
+      JSON.parse(response.body)
+    end
+
+    def download_file(file_id: )
+      response = get(
+        path: "#{PATH_DOWNLOAD_FILE}?FileDownloadType=1&file=#{file_id}",
+        headers: {"Cookie" => @cookie},
+      )
+      response.body
+    end
+
+    def get_messages
+      response = post(
+        path: PATH_GET_MESSAGES,
+        headers: {"Cookie" => @cookie},
+      )
+      data = JSON.parse(response.body)
+      data.fetch("d",{}).fetch("data", []).map { |item|
+        Message.new(item)
+      }.sort_by(&:date)
+    end
+
+    def get_news_feed
+      response = post(
+        path: PATH_NEWSFEED,
+        headers: {"Cookie" => @cookie},
+      )
+      data = JSON.parse(response.body)
+      data.fetch("d",{}).fetch("data", []).map { |item|
+        NewsItem.new(item)
+      }.sort_by(&:post_date)
+    end
+
+    def get_personal_details
+      response = post(
+        path: PATH_GET_PERSONAL_DETAILS,
+        headers: {"Cookie" => @cookie},
+      )
+      JSON.parse(response.body)
+    end
+
+    # this seems to be parent teacher interview slots
+    def get_pst_cycles
+      response = post(
+        path: PATH_PST_CYCLES,
+        headers: {"Cookie" => @cookie},
+      )
+      JSON.parse(response.body)
+    end
+
+    private
+
+    def generate_cookie(username, password)
+      response = post(
+        path: PATH_AUTH,
+        headers: {"Content-Type" => "application/json"},
+        body: JSON.dump({username: username, password: password, sessionstate: "readonly"})
+      )
+      session_id = response["Set-Cookie"][/ASP.NET_SessionId=[a-f0-9\-]+/]
+      raise "login failed" if session_id.nil?
+      session_id
+    end
+
+    def get(path:, headers: {})
+      headers["User-Agent"] = USER_AGENT
+
+      request = Net::HTTP::Get.new(path, headers)
+
+      response = Net::HTTP.start(@hostname, 443, use_ssl: true) do |http|
+        http.request(request)
+      end
+
+      if response.code.to_i == 200
+        response
+      else
+        raise "GET #{path} failed (#{response.code})"
+      end
+    end
+
+    def post(path:, headers: {}, body: nil )
+      headers["User-Agent"] = USER_AGENT
+
+      request = Net::HTTP::Post.new(path, headers)
+      request.body = body if body
+
+      response = Net::HTTP.start(@hostname, 443, use_ssl: true) do |http|
+        http.request(request)
+      end
+
+      if response.code.to_i == 200
+        response
+      else
+        raise "POST #{path} failed (#{response.code}) (#{response.body})"
+      end
     end
   end
 end
@@ -474,10 +476,10 @@ Clamp do
 
     def execute
       dbpath = File.join(File.expand_path(File.dirname(__FILE__)), "db")
-      news_item_repo = NewsItemRepository.new(dbpath)
-      message_repo = MessageRepository.new(dbpath)
-      attachment_repo = NewsItemAttachmentRepository.new(dbpath)
-      client = CompassClient.new(compass_host, compass_user, compass_pass)
+      news_item_repo = MissingCompass::NewsItemRepository.new(dbpath)
+      message_repo = MissingCompass::MessageRepository.new(dbpath)
+      attachment_repo = MissingCompass::NewsItemAttachmentRepository.new(dbpath)
+      client = MissingCompass::CompassClient.new(compass_host, compass_user, compass_pass)
       new_messages = []
       new_news_items = []
 
@@ -506,7 +508,7 @@ Clamp do
         related_news_item = news_item_repo.find(msg.news_item_id)
         attachments = related_news_item.attachments.map { |a| attachment_repo.find(a.id) }
         url = related_news_item.url(compass_host)
-        email = CompassEmail.from_message(["james@yob.id.au","angefoxy@yahoo.com.au"], "james@rainbowbooks.com.au", msg, related_news_item, url, attachments)
+        email = MissingCompass::CompassEmail.from_message(["james@yob.id.au","angefoxy@yahoo.com.au"], "james@rainbowbooks.com.au", msg, related_news_item, url, attachments)
         puts "New Message | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
         send_email(email, gmail_user, gmail_pass)
       end
@@ -516,7 +518,7 @@ Clamp do
       }.each do |item|
         url = item.url(compass_host)
         attachments = item.attachments.map { |a| attachment_repo.find(a.id) }
-        email = CompassEmail.from_news_item(["james@yob.id.au","angefoxy@yahoo.com.au"], "james@rainbowbooks.com.au", item, url, attachments)
+        email = MissingCompass::CompassEmail.from_news_item(["james@yob.id.au","angefoxy@yahoo.com.au"], "james@rainbowbooks.com.au", item, url, attachments)
         puts "New news Item | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
         send_email(email, gmail_user, gmail_pass)
       end
