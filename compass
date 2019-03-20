@@ -481,7 +481,7 @@ module MissingCompass
         related_news_item = news_item_repo.find(msg.news_item_id)
         attachments = related_news_item.attachments.map { |a| attachment_repo.find(a.id) }
         url = related_news_item.url(compass_host)
-        email = MissingCompass::CompassEmail.from_message(to, "james@rainbowbooks.com.au", msg, related_news_item, url, attachments)
+        email = MissingCompass::CompassEmail.from_message(to, gmail_user, msg, related_news_item, url, attachments)
         puts "New Message | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
         send_email(email, gmail_user, gmail_pass)
       end
@@ -491,7 +491,7 @@ module MissingCompass
       }.each do |item|
         url = item.url(compass_host)
         attachments = item.attachments.map { |a| attachment_repo.find(a.id) }
-        email = MissingCompass::CompassEmail.from_news_item(to, "james@rainbowbooks.com.au", item, url, attachments)
+        email = MissingCompass::CompassEmail.from_news_item(to, gmail_user, item, url, attachments)
         puts "New news Item | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
         send_email(email, gmail_user, gmail_pass)
       end
