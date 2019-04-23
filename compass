@@ -493,7 +493,7 @@ module MissingCompass
       if response.code.to_i == 200
         response
       else
-        raise "GET #{path} failed (#{response.code})"
+        raise "GET #{path} failed (#{response.code}) (#{response.body})"
       end
     end
 
