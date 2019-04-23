@@ -382,6 +382,75 @@ module MissingCompass
       }.sort_by(&:post_date)
     end
 
+    def get_news_item(id)
+      response = post(
+        path: "/services/mobile.svc/GetNewsItemById?sessionstate=readonly",
+        headers: {"Cookie" => @cookie, "Content-Type" => "application/json"},
+        body: JSON.dump(newsItemId: id)
+      )
+      JSON.parse(response.body)
+    end
+
+    def get_locations
+      response = post(
+        path: "/services/mobile.svc/GetAllLocations",
+        headers: {"Cookie" => @cookie, "Content-Type" => "application/json"},
+      )
+      JSON.parse(response.body)
+    end
+
+    # approved absences
+    def get_parent_approvals(user_id)
+      response = post(
+        path: "/services/mobile.svc/GetParentApprovalsByUser",
+        headers: {"Cookie" => @cookie, "Content-Type" => "application/json"},
+        body: JSON.dump(userId: user_id)
+      )
+      JSON.parse(response.body)
+    end
+
+    def get_learning_tasks(user_id)
+      response = post(
+        path: "/services/mobile/learningtasks.svc/GetAllTasksByUserId",
+        headers: {"Cookie" => @cookie, "Content-Type" => "application/json"},
+        body: JSON.dump(userId: user_id)
+      )
+      JSON.parse(response.body)
+    end
+
+    def get_activity_news
+      response = post(
+        path: "/services/mobile/news.svc/GetActivityNews",
+        headers: {"Cookie" => @cookie, "Content-Type" => "application/json"},
+        body: JSON.dump({})
+      )
+      JSON.parse(response.body)
+    end
+
+    # There doesn't seem to be a way to get this data via the APIs built for
+    # mobile apps, but this one used by the web app does the trick
+    #
+    def get_events_for_parent(user_id)
+      response = post(
+        path: "/Services/Events.svc/GetForParent",
+        headers: {"Cookie" => @cookie, "Content-Type" => "application/json"},
+        body: JSON.dump({userId: user_id, limit: 20, page: 1})
+      )
+      JSON.parse(response.body)
+    end
+
+    # I found this URL in the javascript of the web UI, but I've never seen it
+    # triggered in the browser. Requesting it here results in a 500 (not 404) so
+    # I think the URL is correct. Presumably there's a params or permissions issue
+    def get_event(id)
+      response = post(
+        path: "/Services/Events.svc/GetById?sessionstate=readonly",
+        headers: {"Cookie" => @cookie, "Content-Type" => "application/json"},
+        body: JSON.dump(activityId: id)
+      )
+      JSON.parse(response.body)
+    end
+
     def get_personal_details
       response = post(
         path: PATH_GET_PERSONAL_DETAILS,
