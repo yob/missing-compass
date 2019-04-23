@@ -1,0 +1,67 @@
+1%s%s/services/fileassets.svc/downloadfilewithpost
+a??ude?vuog???f!.&dnala?iki,topsgolb,??g!.&d&om?tl??gro?moc?ude?vog???hcra?k!.&gro?moc?ofni?ten?ude?vog?zib??b4gc--nx?iw?uzus??l?maim?nim?s!ed??v!.&21k?gro?moc?oc?ten???wik?xarp??j&8da1tabbgl--nx?b!.&ossa?topsgolb,uaerrab?vuog???d?s?t!.&bew?c&a?in??eman?gro?lim?moc?o&c?g??t&en?ni?set??ude?vog?zib????k&ca&bdeef?lb??d!.topsgolb,?h!.&a&4ya0cu--nx?5wqmg--nx??b3qa0do--nx?d&2&2svcw--nx?3rvcl--nx??5xq55--nx??g&a0nt--nx?la0do--nx?ro??i&050qmg--nx?7a0oi--nx?xa0km--nx??m&1qtxm--nx?oc??npqic--nx?t&en?opsgolb,?ude?v&di?og?ta0cu--nx??xva0fz--nx?
+'/services/admin.svc/Authenticate2FAUser
+//services/admin.svc/AuthenticateUserCredentials
+3/services/admin.svc/ChooseDeviceToRecieveAccessCode
+(/services/admin.svc/GetSchoolDetailBasic
+!/services/admin.svc/GetSchoolName
+#/services/fileasset.svc/EnableFiles
+T/services/mobile.svc/AttachDriveLinkToLearningTaskSubmissionV2?sessionstate=readonly
+Q/services/mobile.svc/AttachFileToLearningTaskSubmissionItem?sessionstate=readonly
+#/services/mobile.svc/CancelLRFRTask
+)/services/mobile.svc/ChangeParentPassword
+'/services/mobile.svc/CheckParentDetails
+%/services/mobile.svc/CreatePstBooking
+-/services/mobile.svc/CreateTaskStudentComment
+%/services/mobile.svc/DeletePstBooking
+%/services/mobile.svc/DeregisterDevice
+ /services/mobile.svc/GetAllDoors
+$/services/mobile.svc/GetAllLocations
+(/services/mobile.svc/GetExtendedStatuses
+$/services/mobile.svc/GetInstanceById
+ /services/mobile.svc/GetLRFRTask
+$/services/mobile.svc/GetLanguagePack
+2/services/mobile.svc/GetLatestInstanceByActivityId
+"/services/mobile.svc/GetLatestLogs
+ /services/mobile.svc/GetMessages
+1/services/mobile.svc/GetMultipleUsersDetailsByIds
+/services/mobile.svc/GetMyFiles
+ /services/mobile.svc/GetNewsFeed
+$/services/mobile.svc/GetNewsItemById
+-/services/mobile.svc/GetParentApprovalsByUser
+'/services/mobile.svc/GetPersonalDetails
+;/services/mobile.svc/GetPersonalInformationWithFlagsMedical
+!/services/mobile.svc/GetPstCycles
+0/services/mobile.svc/GetPstHostsUnavailabilities
+ /services/mobile.svc/GetPstStore
+,/services/mobile.svc/GetRollLineExtendedInfo
+#/services/mobile.svc/GetRollPackage
+,/services/mobile.svc/GetScheduleLinesForDate
+)/services/mobile.svc/GetSearchSuggestions
+1/services/mobile.svc/GetSemesterReportsListByUser
+#/services/mobile.svc/GetUserDetails
+-/services/mobile.svc/GetUsersScheduleForRange
+/services/mobile.svc/OpenDoor
+'/services/mobile.svc/PollLRFRTaskStatus
+"/services/mobile.svc/QueueLRFRTask
+#/services/mobile.svc/RegisterDevice
+!/services/mobile.svc/SaveApproval
+$/services/mobile.svc/SaveRollPackage
+/services/mobile.svc/TestAuth
+(/services/mobile.svc/UpdateParentDetails
+%/services/mobile.svc/UpdatePstBooking
+'/services/mobile.svc/UpgradeSamlSession
++/services/mobile/appreview.svc/CreateRating
+-/services/mobile/appreview.svc/RatingRequired
+4/services/mobile/chronicle.svc/ArchiveChronicleEntry
+3/services/mobile/chronicle.svc/CreateChronicleEntry
+:/services/mobile/chronicle.svc/GetChronicleEntriesForStaff
+9/services/mobile/chronicle.svc/GetChronicleEntriesForUser
+4/services/mobile/chronicle.svc/GetChronicleEntryById
+4/services/mobile/chronicle.svc/GetChronicleTemplates
+</services/mobile/chronicle.svc/GetEntryInstancesByActivityId
+3/services/mobile/chronicle.svc/UpdateChronicleEntry
+4/services/mobile/chronicle.svc/getChronicleAttendees
+:/services/mobile/learningtasks.svc/GetAllTasksByActivityId
+6/services/mobile/learningtasks.svc/GetAllTasksByUserId
+)/services/mobile/news.svc/GetActivityNews
