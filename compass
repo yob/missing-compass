@@ -756,8 +756,8 @@ module MissingCompass
       events = client.get_events_for_parent(user.id)
 
       events.each do |event|
-        unless events_repo.exists?(user)
-          events_repo.save(user)
+        unless events_repo.exists?(event)
+          events_repo.save(event)
           url = event.url(compass_host)
           email = MissingCompass::CompassEmail.from_event(to, gmail_user, event, url)
           puts "New Event | #{email.to} | #{email.from} | #{email.subject}"
