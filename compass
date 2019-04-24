@@ -8,6 +8,142 @@ require 'mail'
 require 'clamp'
 
 module MissingCompass
+
+  # There's currently no way to fetch event (ie excursion) data via the mobile API. It's
+  # possible to get some minimal details via the API intended for use by the website, but it's
+  # wrapped in data structures for their UI components. I'll capture the event data this way
+  # for now, but leave the `Event` class and namespace free for a time when the real event data
+  # is (hopefully)_available.
+  class AttentionBindItemEvent
+
+    attr_reader :data
+
+    def initialize(data)
+      @data = data
+    end
+
+    def id
+      @data.fetch("id", 0)
+    end
+
+    def name
+      @data.fetch("n", "")
+    end
+
+    def event_start_time
+      parse_time(@data.fetch("s", ""))
+    end
+
+    def event_end_time
+      parse_time(@data.fetch("e", ""))
+    end
+
+    def price
+      @data.fetch("costAmount", 0)
+    end
+
+    def url(hostname)
+      "https://#{hostname}/Organise/Activities/Events/Event.aspx?eventId=#{id}"
+    end
+
+    private
+
+    def parse_time(str)
+      Time.iso8601(str)
+    end
+  end
+
+  class AttentionBindItemEventRepository
+    def initialize(dir)
+      raise ArgumentError, "#{dir} is not a directory" unless File.directory?(dir)
+      @dir = File.expand_path(dir)
+    end
+
+    def exists?(event)
+      File.file?(build_path(event))
+    end
+
+    def save(event)
+      return true if exists?(event)
+
+      File.open(build_path(event), "wb") do |io|
+        io.write(JSON.pretty_generate(event.data))
+      end
+    end
+
+    def find(id)
+      path = File.join(@dir, "event-bind-#{id}.json")
+      if File.file?(path)
+        User.new(JSON.parse(File.read(path)))
+      end
+    end
+
+    private
+
+    def build_path(event)
+      File.join(@dir, "event-bind-#{event.id}.json")
+    end
+
+  end
+
+  class User
+
+    attr_reader :data
+
+    def initialize(data)
+      @data = data
+    end
+
+    def id
+      @data.fetch("userId", 0)
+    end
+
+    def display_code
+      @data.fetch("displayCode", "")
+    end
+
+    def report_name
+      @data.fetch("reportName", "")
+    end
+
+    def emails
+      @data.fetch("emails", [])
+    end
+  end
+
+  class UserRepository
+    def initialize(dir)
+      raise ArgumentError, "#{dir} is not a directory" unless File.directory?(dir)
+      @dir = File.expand_path(dir)
+    end
+
+    def exists?(user)
+      File.file?(build_path(user))
+    end
+
+    def save(user)
+      return true if exists?(user)
+
+      File.open(build_path(user), "wb") do |io|
+        io.write(JSON.pretty_generate(user.data))
+      end
+    end
+
+    def find(id)
+      path = File.join(@dir, "user-#{id}.json")
+      if File.file?(path)
+        User.new(JSON.parse(File.read(path)))
+      end
+    end
+
+    private
+
+    def build_path(user)
+      File.join(@dir, "user-#{user.id}.json")
+    end
+
+  end
+
   class NewsItemAttachment
 
     attr_reader :data
@@ -306,6 +442,16 @@ module MissingCompass
       @body.to_s.gsub("\r","").gsub("\n\n", "\n")
     end
 
+    def self.from_event(to, from, event, url)
+      new(
+        to: to,
+        from: from,
+        subject: event.name,
+        body: "A new event has been added.",
+        url: url,
+      )
+    end
+
     def self.from_message(to, from, message, news_item, url, attachments)
       new(
         to: to,
@@ -436,7 +582,10 @@ module MissingCompass
         headers: {"Cookie" => @cookie, "Content-Type" => "application/json"},
         body: JSON.dump({userId: user_id, limit: 20, page: 1})
       )
-      JSON.parse(response.body)
+      data = JSON.parse(response.body)
+      data.fetch("d",{}).fetch("data", []).map { |item|
+        AttentionBindItemEvent.new(item)
+      }.sort_by(&:event_start_time)
     end
 
     # I found this URL in the javascript of the web UI, but I've never seen it
@@ -456,7 +605,8 @@ module MissingCompass
         path: PATH_GET_PERSONAL_DETAILS,
         headers: {"Cookie" => @cookie},
       )
-      JSON.parse(response.body)
+      data = JSON.parse(response.body)
+      User.new(data.fetch("d", {}).fetch("data", {}))
     end
 
     # this seems to be parent teacher interview slots
@@ -610,6 +760,31 @@ Clamp do
         gmail_pass: gmail_pass,
         to: to_list
       )
+    end
+  end
+  subcommand "email-new-events", "Send an email for any new events listed on compass" do
+
+    def execute
+      dbpath = File.join(File.expand_path(File.dirname(__FILE__)), "db")
+      user_repo = MissingCompass::UserRepository.new(dbpath)
+      events_repo = MissingCompass::AttentionBindItemEventRepository.new(dbpath)
+      client = MissingCompass::CompassClient.new(compass_host, compass_user, compass_pass)
+      user = client.get_personal_details
+
+      unless user_repo.exists?(user)
+        user_repo.save(user)
+      end
+      events = client.get_events_for_parent(user.id)
+
+      events.each do |event|
+        unless events_repo.exists?(user)
+          events_repo.save(user)
+          url = event.url(compass_host)
+          email = MissingCompass::CompassEmail.from_event(to_list, gmail_user, event, url)
+          puts "New Event | #{email.to} | #{email.from} | #{email.subject}"
+          #send_email(email, gmail_user, gmail_pass)
+        end
+      end
     end
   end
 end
