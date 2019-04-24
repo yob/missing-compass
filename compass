@@ -665,6 +665,31 @@ module MissingCompass
     end
   end
 
+  class GmailClient
+    def initialize(gmail_username, gmail_password)
+      @username, @password = gmail_username, gmail_password
+    end
+
+    def send_email(email)
+      mail = Mail.new do
+        from     email.from
+        to       email.to
+        subject  email.subject
+        text_part do
+          content_type "text/plain; charset=#{email.charset}"
+          body     email.body
+        end
+        email.attachments.each do |attachment|
+          add_file filename: attachment.original_file_name, content: attachment.bytes
+        end
+      end
+
+      mail.delivery_method(:smtp, address: "smtp.gmail.com", port: 587, user_name: @username, password: @password, authentication: 'plain', enable_starttls_auto: true)
+      mail.deliver!
+    end
+
+  end
+
   class Syncer
 
     def run(dbpath:, compass_host:, compass_user:, compass_pass:, gmail_user:, gmail_pass:, to: )
@@ -702,7 +727,7 @@ module MissingCompass
         url = related_news_item.url(compass_host)
         email = MissingCompass::CompassEmail.from_message(to, gmail_user, msg, related_news_item, url, attachments)
         puts "New Message | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
-        send_email(email, gmail_user, gmail_pass)
+        GmailClient.new(gmail_user, gmail_pass).send_email(email)
       end
 
       new_news_items.reject { |item|
@@ -712,28 +737,8 @@ module MissingCompass
         attachments = item.attachments.map { |a| attachment_repo.find(a.id) }
         email = MissingCompass::CompassEmail.from_news_item(to, gmail_user, item, url, attachments)
         puts "New news Item | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
-        send_email(email, gmail_user, gmail_pass)
+        GmailClient.new(gmail_user, gmail_pass).send_email(email)
       end
-    end
-
-    private
-
-    def send_email(email, gmail_username, gmail_password)
-      mail = Mail.new do
-        from     email.from
-        to       email.to
-        subject  email.subject
-        text_part do
-          content_type "text/plain; charset=#{email.charset}"
-          body     email.body
-        end
-        email.attachments.each do |attachment|
-          add_file filename: attachment.original_file_name, content: attachment.bytes
-        end
-      end
-
-      mail.delivery_method(:smtp, address: "smtp.gmail.com", port: 587, user_name: gmail_username, password: gmail_password, authentication: 'plain', enable_starttls_auto: true)
-      mail.deliver!
     end
 
   end
