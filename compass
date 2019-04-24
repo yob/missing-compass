@@ -740,7 +740,31 @@ module MissingCompass
         GmailClient.new(gmail_user, gmail_pass).send_email(email)
       end
     end
+  end
 
+  class NewEventCheck
+    def run(dbpath:, compass_host:, compass_user:, compass_pass:, gmail_user:, gmail_pass:, to: )
+      dbpath = File.join(File.expand_path(File.dirname(__FILE__)), "db")
+      user_repo = MissingCompass::UserRepository.new(dbpath)
+      events_repo = MissingCompass::AttentionBindItemEventRepository.new(dbpath)
+      client = MissingCompass::CompassClient.new(compass_host, compass_user, compass_pass)
+      user = client.get_personal_details
+
+      unless user_repo.exists?(user)
+        user_repo.save(user)
+      end
+      events = client.get_events_for_parent(user.id)
+
+      events.each do |event|
+        unless events_repo.exists?(user)
+          events_repo.save(user)
+          url = event.url(compass_host)
+          email = MissingCompass::CompassEmail.from_event(to, gmail_user, event, url)
+          puts "New Event | #{email.to} | #{email.from} | #{email.subject}"
+          GmailClient.new(gmail_user, gmail_pass).send_email(email)
+        end
+      end
+    end
   end
 end
 
@@ -767,29 +791,20 @@ Clamp do
       )
     end
   end
+
   subcommand "email-new-events", "Send an email for any new events listed on compass" do
 
     def execute
-      dbpath = File.join(File.expand_path(File.dirname(__FILE__)), "db")
-      user_repo = MissingCompass::UserRepository.new(dbpath)
-      events_repo = MissingCompass::AttentionBindItemEventRepository.new(dbpath)
-      client = MissingCompass::CompassClient.new(compass_host, compass_user, compass_pass)
-      user = client.get_personal_details
-
-      unless user_repo.exists?(user)
-        user_repo.save(user)
-      end
-      events = client.get_events_for_parent(user.id)
-
-      events.each do |event|
-        unless events_repo.exists?(user)
-          events_repo.save(user)
-          url = event.url(compass_host)
-          email = MissingCompass::CompassEmail.from_event(to_list, gmail_user, event, url)
-          puts "New Event | #{email.to} | #{email.from} | #{email.subject}"
-          #send_email(email, gmail_user, gmail_pass)
-        end
-      end
+      app = MissingCompass::NewEventCheck.new
+      app.run(
+        dbpath: File.join(File.expand_path(File.dirname(__FILE__)), "db"),
+        compass_host: compass_host,
+        compass_user: compass_user,
+        compass_pass: compass_pass,
+        gmail_user: gmail_user,
+        gmail_pass: gmail_pass,
+        to: to_list
+      )
     end
   end
 end
