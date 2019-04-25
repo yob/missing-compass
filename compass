@@ -291,18 +291,14 @@ module MissingCompass
   end
 
   class CompassEmail
-    attr_reader :to, :from, :attachments
+    attr_reader :to, :from, :body, :attachments
 
-    def initialize(to:, from:, subject:, body:, url:, attachments: [])
-      @to, @from, @subject, @body, @url, @attachments = to, from, subject, body, url, attachments
+    def initialize(to:, from:, subject:, body:, attachments: [])
+      @to, @from, @subject, @body, @attachments = to, from, subject, body, attachments
     end
 
     def subject
       "Compass: #{@subject}"
-    end
-
-    def body
-      "A new message has been posted to compass.\n\nURL: #{@url}\n\n=================================================\n\n#{compacted_body}"
     end
 
     def charset
@@ -326,38 +322,36 @@ module MissingCompass
       temp_body.valid_encoding?
     end
 
-    def compacted_body
-      @body.to_s.gsub("\r","").gsub("\n\n", "\n")
-    end
-
     def self.from_event(to, from, event, url)
+      body = "A new event has been posted to compass.\n\nURL: #{url}\n\n=================================================\n\nClick through for details"
       new(
         to: to,
         from: from,
         subject: event.name,
-        body: "A new event has been added.",
-        url: url,
+        body: body,
       )
     end
 
     def self.from_message(to, from, message, news_item, url, attachments)
+      body = "A new message has been posted to compass.\n\nURL: #{url}\n\n=================================================\n\n"
+      body += news_item.content.gsub("\r","").gsub("\n\n", "\n")
       new(
         to: to,
         from: from,
         subject: message.content_html,
-        body: news_item.content,
-        url: url,
+        body: compacted_body,
         attachments: attachments
       )
     end
 
     def self.from_news_item(to, from, news_item, url, attachments)
+      body = "A new message has been posted to compass.\n\nURL: #{url}\n\n=================================================\n\n"
+      body += news_item.content.gsub("\r","").gsub("\n\n", "\n")
       new(
         to: to,
         from: from,
         subject: news_item.title,
-        body: news_item.content,
-        url: url,
+        body: body,
         attachments: attachments
       )
     end
