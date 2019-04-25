@@ -53,35 +53,63 @@ module MissingCompass
     end
   end
 
-  class AttentionBindItemEventRepository
-    def initialize(dir)
+  class Repository
+    def initialize(dir, file_prefix, klass)
       raise ArgumentError, "#{dir} is not a directory" unless File.directory?(dir)
       @dir = File.expand_path(dir)
+      @file_prefix = file_prefix
+      @klass = klass
     end
 
-    def exists?(event)
-      File.file?(build_path(event))
+    def self.attention_bind_item_event(dbpath)
+      new(dbpath, "event-bind", MissingCompass::AttentionBindItemEvent)
     end
 
-    def save(event)
-      return true if exists?(event)
+    def self.message(dbpath)
+      new(dbpath, "message", MissingCompass::Message)
+    end
 
-      File.open(build_path(event), "wb") do |io|
-        io.write(JSON.pretty_generate(event.data))
+    def self.news_item(dbpath)
+      new(dbpath, "news-item", MissingCompass::NewsItem)
+    end
+
+    def self.news_item_attachment(dbpath)
+      new(dbpath, "attachment", MissingCompass::NewsItemAttachment)
+    end
+
+    def self.user(dbpath)
+      new(dbpath, "user", MissingCompass::User)
+    end
+
+    def exists?(thing)
+      File.file?(build_path(thing))
+    end
+
+    def save(thing)
+      return true if exists?(thing)
+
+      File.open(build_path(thing), "wb") do |io|
+        io.write(JSON.pretty_generate(thing.data))
       end
     end
 
     def find(id)
-      path = File.join(@dir, "event-bind-#{id}.json")
+      path = File.join(@dir, "#{@file_prefix}-#{id}.json")
       if File.file?(path)
-        User.new(JSON.parse(File.read(path)))
+        @klass.new(JSON.parse(File.read(path)))
+      end
+    end
+
+    def all
+      Dir.glob("#{@dir}/#{@file_prefix}-*.json").map do |path|
+        @klass.new(JSON.parse(File.read(path)))
       end
     end
 
     private
 
-    def build_path(event)
-      File.join(@dir, "event-bind-#{event.id}.json")
+    def build_path(thing)
+      File.join(@dir, "#{@file_prefix}-#{thing.id}.json")
     end
 
   end
@@ -109,39 +137,6 @@ module MissingCompass
     def emails
       @data.fetch("emails", [])
     end
-  end
-
-  class UserRepository
-    def initialize(dir)
-      raise ArgumentError, "#{dir} is not a directory" unless File.directory?(dir)
-      @dir = File.expand_path(dir)
-    end
-
-    def exists?(user)
-      File.file?(build_path(user))
-    end
-
-    def save(user)
-      return true if exists?(user)
-
-      File.open(build_path(user), "wb") do |io|
-        io.write(JSON.pretty_generate(user.data))
-      end
-    end
-
-    def find(id)
-      path = File.join(@dir, "user-#{id}.json")
-      if File.file?(path)
-        User.new(JSON.parse(File.read(path)))
-      end
-    end
-
-    private
-
-    def build_path(user)
-      File.join(@dir, "user-#{user.id}.json")
-    end
-
   end
 
   class NewsItemAttachment
@@ -185,39 +180,6 @@ module MissingCompass
     def add_bytes(bytes)
       @data["bytes_base64"] = Base64.encode64(bytes.to_s)
     end
-  end
-
-  class NewsItemAttachmentRepository
-    def initialize(dir)
-      raise ArgumentError, "#{dir} is not a directory" unless File.directory?(dir)
-      @dir = File.expand_path(dir)
-    end
-
-    def exists?(attachment)
-      File.file?(build_path(attachment))
-    end
-
-    def save(attachment)
-      return true if exists?(attachment)
-
-      File.open(build_path(attachment), "wb") do |io|
-        io.write(JSON.pretty_generate(attachment.data))
-      end
-    end
-
-    def find(id)
-      path = File.join(@dir, "attachment-#{id}.json")
-      if File.file?(path)
-        NewsItemAttachment.new(JSON.parse(File.read(path)))
-      end
-    end
-
-    private
-
-    def build_path(attachment)
-      File.join(@dir, "attachment-#{attachment.id}.json")
-    end
-
   end
 
   class NewsItem
@@ -281,46 +243,6 @@ module MissingCompass
     end
   end
 
-  class NewsItemRepository
-    def initialize(dir)
-      raise ArgumentError, "#{dir} is not a directory" unless File.directory?(dir)
-      @dir = File.expand_path(dir)
-    end
-
-    def exists?(news_item)
-      File.file?(build_path(news_item))
-    end
-
-    def save(news_item)
-      if !exists?(news_item)
-        File.open(build_path(news_item), "wb") do |io|
-          io.write(JSON.pretty_generate(news_item.data))
-        end
-      else
-        false
-      end
-    end
-
-    def find(id)
-      path = File.join(@dir, "news-item-#{id}.json")
-      if File.file?(path)
-        NewsItem.new(JSON.parse(File.read(path)))
-      end
-    end
-
-    def all
-      Dir.glob("#{@dir}/news-item-*.json").map do |path|
-        NewsItem.new(JSON.parse(File.read(path)))
-      end
-    end
-
-    private
-
-    def build_path(news_item)
-      File.join(@dir, "news-item-#{news_item.id}.json")
-    end
-  end
-
   class Message
 
     attr_reader :data
@@ -365,40 +287,6 @@ module MissingCompass
 
     def parse_time(str)
       Time.iso8601(str)
-    end
-  end
-
-  class MessageRepository
-    def initialize(dir)
-      raise ArgumentError, "#{dir} is not a directory" unless File.directory?(dir)
-      @dir = File.expand_path(dir)
-    end
-
-    def exists?(msg)
-      File.file?(build_path(msg))
-    end
-
-    def save(msg)
-      if !exists?(msg)
-        File.open(build_path(msg), "wb") do |io|
-          io.write(JSON.pretty_generate(msg.data))
-        end
-      else
-        false
-      end
-    end
-
-    def find(id)
-      path = File.join(@dir, "message-#{id}.json")
-      if File.file?(path)
-        Message.new(JSON.parse(File.read(path)))
-      end
-    end
-
-    private
-
-    def build_path(msg)
-      File.join(@dir, "message-#{msg.id}.json")
     end
   end
 
@@ -693,9 +581,9 @@ module MissingCompass
   class Syncer
 
     def run(dbpath:, compass_host:, compass_user:, compass_pass:, gmail_user:, gmail_pass:, to: )
-      news_item_repo = MissingCompass::NewsItemRepository.new(dbpath)
-      message_repo = MissingCompass::MessageRepository.new(dbpath)
-      attachment_repo = MissingCompass::NewsItemAttachmentRepository.new(dbpath)
+      news_item_repo = MissingCompass::Repository.news_item(dbpath)
+      message_repo = MissingCompass::Repository.message(dbpath)
+      attachment_repo = MissingCompass::Repository.news_item_attachment(dbpath)
       client = MissingCompass::CompassClient.new(compass_host, compass_user, compass_pass)
       new_messages = []
       new_news_items = []
@@ -745,8 +633,8 @@ module MissingCompass
   class NewEventCheck
     def run(dbpath:, compass_host:, compass_user:, compass_pass:, gmail_user:, gmail_pass:, to: )
       dbpath = File.join(File.expand_path(File.dirname(__FILE__)), "db")
-      user_repo = MissingCompass::UserRepository.new(dbpath)
-      events_repo = MissingCompass::AttentionBindItemEventRepository.new(dbpath)
+      user_repo = MissingCompass::Repository.user(dbpath)
+      events_repo = MissingCompass::Repository.attention_bind_item_event(dbpath)
       client = MissingCompass::CompassClient.new(compass_host, compass_user, compass_pass)
       user = client.get_personal_details
 
