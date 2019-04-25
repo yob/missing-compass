@@ -361,11 +361,14 @@ module MissingCompass
     USER_AGENT = "iOS/12_1_2 type/iPhone CompassEducation/4.5.3"
     PATH_AUTH = "/services/admin.svc/AuthenticateUserCredentials"
     PATH_NEWSFEED = "/services/mobile.svc/GetNewsFeed?sessionstate=readonly"
+    PATH_GET_NEWS_ITEM = "/services/mobile.svc/GetNewsItemById?sessionstate=readonly"
     PATH_GET_MESSAGES = "/services/mobile.svc/GetMessages?sessionstate=readonly"
     PATH_PST_CYCLES = "/services/mobile.svc/GetPstCycles?sessionstate=readonly"
     PATH_CHECK_PARENT_DETAILS = "/services/mobile.svc/CheckParentDetails?sessionstate=readonly"
     PATH_GET_PERSONAL_DETAILS = "/services/mobile.svc/GetPersonalDetails?sessionstate=readonly"
     PATH_DOWNLOAD_FILE = "/services/FileDownload/FileRequestHandler"
+    PATH_GET_EVENT = "/Services/Events.svc/GetById?sessionstate=readonly"
+    PATH_GET_EVENTS_FOR_PARENT = "/Services/Events.svc/GetForParent"
 
     def initialize(hostname, username, password)
       @hostname = hostname
@@ -412,7 +415,7 @@ module MissingCompass
 
     def get_news_item(id)
       response = post(
-        path: "/services/mobile.svc/GetNewsItemById?sessionstate=readonly",
+        path: PATH_GET_NEWS_ITEM,
         headers: {"Cookie" => @cookie, "Content-Type" => "application/json"},
         body: JSON.dump(newsItemId: id)
       )
@@ -460,7 +463,7 @@ module MissingCompass
     #
     def get_events_for_parent(user_id)
       response = post(
-        path: "/Services/Events.svc/GetForParent",
+        path: PATH_GET_EVENTS_FOR_PARENT,
         headers: {"Cookie" => @cookie, "Content-Type" => "application/json"},
         body: JSON.dump({userId: user_id, limit: 20, page: 1})
       )
@@ -475,7 +478,7 @@ module MissingCompass
     # I think the URL is correct. Presumably there's a params or permissions issue
     def get_event(id)
       response = post(
-        path: "/Services/Events.svc/GetById?sessionstate=readonly",
+        path: PATH_GET_EVENT,
         headers: {"Cookie" => @cookie, "Content-Type" => "application/json"},
         body: JSON.dump(activityId: id)
       )
