@@ -339,7 +339,7 @@ module MissingCompass
         to: to,
         from: from,
         subject: message.content_html,
-        body: compacted_body,
+        body: body,
         attachments: attachments
       )
     end
