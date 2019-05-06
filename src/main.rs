@@ -1,4 +1,7 @@
-use serde_derive::{Serialize,Deserialize};
+#[macro_use]
+extern crate serde_json;
+
+use serde_derive::{Deserialize};
 use clap::{App, Arg, SubCommand};
 
 
@@ -6,13 +9,6 @@ use clap::{App, Arg, SubCommand};
 struct User {
     login: String,
     id: u32,
-}
-
-#[derive(Serialize, Debug)]
-struct CompassAuthRequest {
-    username: String,
-    password: String,
-    sessionstate: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -25,17 +21,14 @@ fn build_client(hostname: String, username: String, password: String) -> Result<
     let request_url = format!("https://{hostname}/services/admin.svc/AuthenticateUserCredentials",
                               hostname = hostname);
 
-    // TODO can I drop the struct and use json! macro from serde_json
-    // https://crates.io/crates/serde_json
-    let body = CompassAuthRequest {
-        username: username,
-        password: password,
-        sessionstate: String::from("readonly"),
-    };
-    let body = serde_json::to_string(&body).unwrap();
+    let body = json!({
+        "username": username,
+        "password": password,
+        "sessionstate": "readonly"
+    });
 
     let client = reqwest::Client::new();
-    let response = client.post(&request_url).header("Content-Type", "application/json").body(body).send()?;
+    let response = client.post(&request_url).header("Content-Type", "application/json").body(body.to_string()).send()?;
 
     //println!("status: {:?}", response.status());
     //println!("body: {:?}", response.text()?);
