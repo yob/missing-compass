@@ -410,7 +410,7 @@ module MissingCompass
       data = JSON.parse(response.body)
       data.fetch("d",{}).fetch("data", []).map { |item|
         NewsItem.new(item)
-      }.sort_by(&:post_date)
+      }.sort_by(&:id)
     end
 
     def get_news_item(id)
