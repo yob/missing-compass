@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/bin/bash
 
 bundle check > /dev/null || bundle install
 exec bundle exec "${@-bash}"
