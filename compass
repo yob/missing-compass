@@ -110,6 +110,10 @@ module MissingCompass
       @data.fetch("url", nil)
     end
 
+    def bytesize
+      bytes&.bytesize
+    end
+
     def bytes
       if @data.key?("bytes_base64")
         Base64.decode64(@data.fetch("bytes_base64"))
@@ -576,6 +580,7 @@ module MissingCompass
   end
 
   class Syncer
+    ATTACHMENT_BYTE_LIMIT = 1024 * 1024 * 20 # 20 Mb
 
     def run(dbpath:, compass_host:, compass_user:, compass_pass:, gmail_user:, gmail_pass:, to: )
       news_item_repo = MissingCompass::Repository.news_item(dbpath)
@@ -609,6 +614,8 @@ module MissingCompass
       new_messages.each do |msg|
         related_news_item = news_item_repo.find(msg.news_item_id)
         attachments = related_news_item.attachments.map { |a| attachment_repo.find(a.id) }
+        # Skip attachments that are too large
+        attachments = attachments.select { |a| a.bytesize <= ATTACHMENT_BYTE_LIMIT}
         url = related_news_item.url(compass_host)
         email = MissingCompass::CompassEmail.from_message(to, gmail_user, msg, related_news_item, url, attachments)
         puts "New Message | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
@@ -620,6 +627,8 @@ module MissingCompass
       }.each do |item|
         url = item.url(compass_host)
         attachments = item.attachments.map { |a| attachment_repo.find(a.id) }
+        # Skip attachments that are too large
+        attachments = attachments.select { |a| a.bytesize <= ATTACHMENT_BYTE_LIMIT}
         email = MissingCompass::CompassEmail.from_news_item(to, gmail_user, item, url, attachments)
         puts "New news Item | #{email.to} | #{email.from} | #{email.subject} | #{attachments.size} attachments"
         GmailClient.new(gmail_user, gmail_pass).send_email(email)
