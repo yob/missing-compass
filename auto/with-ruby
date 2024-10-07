@@ -12,5 +12,5 @@ docker run \
   -w /work \
   --entrypoint /work/scripts/bundle-exec \
   --rm \
-  -t ruby:2.6.3 \
+  -t ruby:3.3.5 \
   "${@-bash}" # default command to launch in the container
