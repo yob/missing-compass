@@ -6,6 +6,7 @@ require 'time'
 require 'base64'
 require 'mail'
 require 'clamp'
+require 'open3'
 
 module MissingCompass
 
@@ -364,19 +365,16 @@ module MissingCompass
   class CompassClient
     USER_AGENT = "iOS/12_1_2 type/iPhone CompassEducation/4.5.3"
     PATH_AUTH = "/services/admin.svc/AuthenticateUserCredentials"
-    PATH_NEWSFEED = "/services/mobile.svc/GetNewsFeed?sessionstate=readonly"
     PATH_GET_NEWS_ITEM = "/services/mobile.svc/GetNewsItemById?sessionstate=readonly"
-    PATH_GET_MESSAGES = "/services/mobile.svc/GetMessages?sessionstate=readonly"
     PATH_PST_CYCLES = "/services/mobile.svc/GetPstCycles?sessionstate=readonly"
     PATH_CHECK_PARENT_DETAILS = "/services/mobile.svc/CheckParentDetails?sessionstate=readonly"
-    PATH_GET_PERSONAL_DETAILS = "/services/mobile.svc/GetPersonalDetails?sessionstate=readonly"
-    PATH_DOWNLOAD_FILE = "/services/FileDownload/FileRequestHandler"
     PATH_GET_EVENT = "/Services/Events.svc/GetById?sessionstate=readonly"
-    PATH_GET_EVENTS_FOR_PARENT = "/Services/Events.svc/GetForParent"
 
     def initialize(hostname, username, password)
       @hostname = hostname
-      @cookie = generate_cookie(username, password)
+      @username = username
+      @password = password
+      #@cookie = generate_cookie(username, password)
     end
 
     def check_parent_details
@@ -388,30 +386,20 @@ module MissingCompass
     end
 
     def download_file(file_id: )
-      response = get(
-        path: "#{PATH_DOWNLOAD_FILE}?FileDownloadType=1&file=#{file_id}",
-        headers: {"Cookie" => @cookie},
-      )
-      response.body
+      exec_cmd("download-file", "--username", @username, "--password", @password, "--hostname", @hostname, "--file-id", file_id.to_s)
     end
 
     def get_messages
-      response = post(
-        path: PATH_GET_MESSAGES,
-        headers: {"Cookie" => @cookie},
-      )
-      data = JSON.parse(response.body)
+      response = exec_cmd("get-messages", "--username", @username, "--password", @password, "--hostname", @hostname)
+      data = JSON.parse(response)
       data.fetch("d",{}).fetch("data", []).map { |item|
         Message.new(item)
       }.sort_by(&:date)
     end
 
     def get_news_feed
-      response = post(
-        path: PATH_NEWSFEED,
-        headers: {"Cookie" => @cookie},
-      )
-      data = JSON.parse(response.body)
+      response = exec_cmd("news-feed", "--username", @username, "--password", @password, "--hostname", @hostname)
+      data = JSON.parse(response)
       data.fetch("d",{}).fetch("data", []).map { |item|
         NewsItem.new(item)
       }.sort_by(&:id)
@@ -466,12 +454,8 @@ module MissingCompass
     # mobile apps, but this one used by the web app does the trick
     #
     def get_events_for_parent(user_id)
-      response = post(
-        path: PATH_GET_EVENTS_FOR_PARENT,
-        headers: {"Cookie" => @cookie, "Content-Type" => "application/json"},
-        body: JSON.dump({userId: user_id, limit: 20, page: 1})
-      )
-      data = JSON.parse(response.body)
+      response = exec_cmd("get-events-for-parent", "--username", @username, "--password", @password, "--hostname", @hostname, "--user-id", user_id.to_s)
+      data = JSON.parse(response)
       data.fetch("d",{}).fetch("data", []).map { |item|
         AttentionBindItemEvent.new(item)
       }.sort_by(&:event_start_time)
@@ -490,11 +474,8 @@ module MissingCompass
     end
 
     def get_personal_details
-      response = post(
-        path: PATH_GET_PERSONAL_DETAILS,
-        headers: {"Cookie" => @cookie},
-      )
-      data = JSON.parse(response.body)
+      response = exec_cmd("get-personal-details", "--username", @username, "--password", @password, "--hostname", @hostname)
+      data = JSON.parse(response)
       User.new(data.fetch("d", {}).fetch("data", {}))
     end
 
@@ -508,6 +489,16 @@ module MissingCompass
     end
 
     private
+
+    def exec_cmd(*args)
+      path = File.join(File.expand_path(File.dirname(__FILE__)), "compass-cli")
+      stdout_s, status = Open3.capture2(path, *args)
+      if status.success?
+        stdout_s
+      else
+        raise "Error executing command: #{path}"
+      end
+    end
 
     def generate_cookie(username, password)
       response = post(
@@ -611,7 +602,11 @@ module MissingCompass
         end
       end
 
-      new_messages.each do |msg|
+      new_messages.select { |msg|
+        # if we can find the related news item, it's probably old and
+        # we didn't manage to fetch it and save a local copy
+        news_item_repo.find(msg.news_item_id)
+      }.each do |msg|
         related_news_item = news_item_repo.find(msg.news_item_id)
         attachments = related_news_item.attachments.map { |a| attachment_repo.find(a.id) }
         # Skip attachments that are too large
