@@ -363,26 +363,11 @@ module MissingCompass
   end
 
   class CompassClient
-    USER_AGENT = "iOS/12_1_2 type/iPhone CompassEducation/4.5.3"
-    PATH_AUTH = "/services/admin.svc/AuthenticateUserCredentials"
-    PATH_GET_NEWS_ITEM = "/services/mobile.svc/GetNewsItemById?sessionstate=readonly"
-    PATH_PST_CYCLES = "/services/mobile.svc/GetPstCycles?sessionstate=readonly"
-    PATH_CHECK_PARENT_DETAILS = "/services/mobile.svc/CheckParentDetails?sessionstate=readonly"
-    PATH_GET_EVENT = "/Services/Events.svc/GetById?sessionstate=readonly"
 
     def initialize(hostname, username, password)
       @hostname = hostname
       @username = username
       @password = password
-      #@cookie = generate_cookie(username, password)
-    end
-
-    def check_parent_details
-      response = post(
-        path: PATH_CHECK_PARENT_DETAILS,
-        headers: {"Cookie" => @cookie},
-      )
-      JSON.parse(response.body)
     end
 
     def download_file(file_id: )
@@ -405,51 +390,6 @@ module MissingCompass
       }.sort_by(&:id)
     end
 
-    def get_news_item(id)
-      response = post(
-        path: PATH_GET_NEWS_ITEM,
-        headers: {"Cookie" => @cookie, "Content-Type" => "application/json"},
-        body: JSON.dump(newsItemId: id)
-      )
-      JSON.parse(response.body)
-    end
-
-    def get_locations
-      response = post(
-        path: "/services/mobile.svc/GetAllLocations",
-        headers: {"Cookie" => @cookie, "Content-Type" => "application/json"},
-      )
-      JSON.parse(response.body)
-    end
-
-    # approved absences
-    def get_parent_approvals(user_id)
-      response = post(
-        path: "/services/mobile.svc/GetParentApprovalsByUser",
-        headers: {"Cookie" => @cookie, "Content-Type" => "application/json"},
-        body: JSON.dump(userId: user_id)
-      )
-      JSON.parse(response.body)
-    end
-
-    def get_learning_tasks(user_id)
-      response = post(
-        path: "/services/mobile/learningtasks.svc/GetAllTasksByUserId",
-        headers: {"Cookie" => @cookie, "Content-Type" => "application/json"},
-        body: JSON.dump(userId: user_id)
-      )
-      JSON.parse(response.body)
-    end
-
-    def get_activity_news
-      response = post(
-        path: "/services/mobile/news.svc/GetActivityNews",
-        headers: {"Cookie" => @cookie, "Content-Type" => "application/json"},
-        body: JSON.dump({})
-      )
-      JSON.parse(response.body)
-    end
-
     # There doesn't seem to be a way to get this data via the APIs built for
     # mobile apps, but this one used by the web app does the trick
     #
@@ -461,31 +401,10 @@ module MissingCompass
       }.sort_by(&:event_start_time)
     end
 
-    # I found this URL in the javascript of the web UI, but I've never seen it
-    # triggered in the browser. Requesting it here results in a 500 (not 404) so
-    # I think the URL is correct. Presumably there's a params or permissions issue
-    def get_event(id)
-      response = post(
-        path: PATH_GET_EVENT,
-        headers: {"Cookie" => @cookie, "Content-Type" => "application/json"},
-        body: JSON.dump(activityId: id)
-      )
-      JSON.parse(response.body)
-    end
-
     def get_personal_details
       response = exec_cmd("get-personal-details", "--username", @username, "--password", @password, "--hostname", @hostname)
       data = JSON.parse(response)
       User.new(data.fetch("d", {}).fetch("data", {}))
-    end
-
-    # this seems to be parent teacher interview slots
-    def get_pst_cycles
-      response = post(
-        path: PATH_PST_CYCLES,
-        headers: {"Cookie" => @cookie},
-      )
-      JSON.parse(response.body)
     end
 
     private
@@ -497,50 +416,6 @@ module MissingCompass
         stdout_s
       else
         raise "Error executing command: #{path}"
-      end
-    end
-
-    def generate_cookie(username, password)
-      response = post(
-        path: PATH_AUTH,
-        headers: {"Content-Type" => "application/json"},
-        body: JSON.dump({username: username, password: password, sessionstate: "readonly"})
-      )
-      session_id = response["Set-Cookie"][/ASP.NET_SessionId=[a-f0-9\-]+/]
-      raise "login failed" if session_id.nil?
-      session_id
-    end
-
-    def get(path:, headers: {})
-      headers["User-Agent"] = USER_AGENT
-
-      request = Net::HTTP::Get.new(path, headers)
-
-      response = Net::HTTP.start(@hostname, 443, use_ssl: true) do |http|
-        http.request(request)
-      end
-
-      if response.code.to_i == 200
-        response
-      else
-        raise "GET #{path} failed (#{response.code}) (#{response.body})"
-      end
-    end
-
-    def post(path:, headers: {}, body: nil )
-      headers["User-Agent"] = USER_AGENT
-
-      request = Net::HTTP::Post.new(path, headers)
-      request.body = body if body
-
-      response = Net::HTTP.start(@hostname, 443, use_ssl: true) do |http|
-        http.request(request)
-      end
-
-      if response.code.to_i == 200
-        response
-      else
-        raise "POST #{path} failed (#{response.code}) (#{response.body})"
       end
     end
   end
